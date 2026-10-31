@@ -1,7 +1,9 @@
-import { Link } from "react-router-dom";
-import BackgroundSwitch from "./backgroundSwitch";
+const ARENA_LIST = [
+  { id: "ullevi", label: "GAMLA ULLEVI" },
+  { id: "eleda", label: "ELEDA STADION" },
+];
 
-export default function Navigation() {
+export default function Navigation({ activeArena, onSelectArena }) {
   return (
     <div
       className="navigation"
@@ -20,12 +22,23 @@ export default function Navigation() {
           gap: "20px",
         }}
       >
-        <Link to="/" style={{ color: "black" }}>
-          GAMLA ULLLEVI
-        </Link>
-        <Link to="/" style={{ color: "black" }}>
-          ELEDA STADION
-        </Link>
+        {ARENA_LIST.map(({ id, label }) => {
+          const isActive = activeArena === id;
+          return (
+            <div
+              key={id}
+              onClick={() => onSelectArena(id)}
+              style={{
+                color: isActive ? "#2563eb" : "#000",
+                fontWeight: isActive ? "700" : "400",
+                cursor: "pointer",
+                transition: "color 0.15s ease, font-weight 0.15s ease",
+              }}
+            >
+              {label}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

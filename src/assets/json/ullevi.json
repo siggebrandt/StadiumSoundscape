@@ -1,4 +1,12 @@
 {
+  "location": {
+    "name": "Gamla Ullevi",
+    "longitude": 11.980072976676028,
+    "latitude": 57.70624177231193,
+    "zoom": 17.5,
+    "pitch": 45,
+    "bearing": -45
+  },
   "microphones": {
     "007": {
       "id": "007",

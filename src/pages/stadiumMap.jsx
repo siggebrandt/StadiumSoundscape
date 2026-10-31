@@ -1,106 +1,207 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Map, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
+
 import ullevi from "../assets/json/ullevi.json";
+import eleda from "../assets/json/eleda.json";
 
 import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
+import Navigation from "../components/navigation";
+
+const ARENAS = {
+  ullevi,
+  eleda,
+};
 
 const apiKey = import.meta.env.VITE_API_KEY;
 const apiUrl = import.meta.env.VITE_API_URL;
-const apiUrl1 = import.meta.env.VITE_API_URL1;
 
-const stadiumCoordinates = {
-  longitude: 11.979925726389924,
-  latitude: 57.706510496715524,
-};
-
-export default function MapComponent() {
+export default function StadiumMap() {
   const mapRef = useRef(null);
+  const [activeArenaKey, setActiveArenaKey] = useState("ullevi");
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitioningName, setTransitioningName] = useState("");
 
+  const activeArena = ARENAS[activeArenaKey];
   const mapPanning = mapBoxControls(mapRef);
 
-  const maxBounds = [
-    [11.979178662486545, 57.70559405517854], // sydväst
-    [11.980967290865511, 57.70688948944532], // nordost
-  ];
+  const handleSelectArena = (arenaKey) => {
+    if (arenaKey === activeArenaKey || isTransitioning) return;
+
+    const targetArena = ARENAS[arenaKey];
+    setTransitioningName(targetArena.location.name);
+    setIsTransitioning(true);
+
+    // 1. Skärmen tonar in med mjuk oskärpa (300ms)
+    setTimeout(() => {
+      setActiveArenaKey(arenaKey);
+
+      if (mapRef.current) {
+        const map = mapRef.current.getMap();
+        const loc = targetArena.location;
+
+        // 2. Hoppa till den nya arenans position bakom dimman
+        map.jumpTo({
+          center: [loc.longitude, loc.latitude],
+          zoom: loc.zoom,
+          pitch: loc.pitch,
+          bearing: loc.bearing,
+        });
+
+        // 3. När kartan laddats in, tona ut dimman
+        const onIdle = () => {
+          setIsTransitioning(false);
+        };
+        map.once("idle", onIdle);
+
+        // Säkerhetstimeout så den inte fastnar om kartan redan är idle
+        setTimeout(() => {
+          map.off("idle", onIdle);
+          setIsTransitioning(false);
+        }, 400);
+      } else {
+        setIsTransitioning(false);
+      }
+    }, 350);
+  };
 
   return (
-    <div
-      style={{ width: "100%", height: "100vh", touchAction: "none" }}
-      {...mapPanning}
-    >
-      <Map
-        ref={mapRef}
-        dragPan={false}
-        dragRotate={false}
-        doubleClickZoom={false}
-        scrollZoom={false}
-        boxZoom={false}
-        keyboard={false}
-        touchZoomRotate={false}
-        touchPitch={false}
-        mapboxAccessToken={apiKey}
-        initialViewState={{
-          longitude: stadiumCoordinates.longitude,
-          latitude: stadiumCoordinates.latitude,
-          zoom: 17.5,
-          pitch: 45,
-          bearing: -45,
-          dragPan: false,
-          dragRotate: false,
-          touchPitch: false,
-          keyboard: false,
-        }}
-        maxBounds={maxBounds}
-        style={{ width: "100%", height: "100vh" }}
-        mapStyle={apiUrl}
-        maxPitch={85}
-        minZoom={17.5}
-        maxZoom={17.5}
-        terrain={{
-          source: "mapbox-dem",
-          exaggeration: [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12,
-            2.8,
-            14,
-            1.5,
-            16,
-            1.2,
-          ],
+    <>
+      {/* Filmisk övergångs-overlay */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 50,
+          pointerEvents: isTransitioning ? "all" : "none",
+          opacity: isTransitioning ? 1 : 0,
+          transition: "opacity 0.35s ease-in-out",
+          backgroundColor: "rgba(10, 15, 29, 0.75)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#ffffff",
+          fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
-        <Source
-          id="mapbox-dem"
-          type="raster-dem"
-          url="mapbox://mapbox.mapbox-terrain-dem-v1"
-          tileSize={512}
-          maxzoom={14}
-        />
-        {/* Manage 3D elements */}
-        <Layer
-          id="all-buildings"
-          source="composite"
-          source-layer="building"
-          type="fill-extrusion"
-          paint={{
-            "fill-extrusion-height": [
-              "case",
-              [
-                "in",
-                ["id"],
-                ["literal", [3114029, 104112635, "3114029", "104112635"]],
-              ],
-              22,
-              0,
+        <div
+          style={{
+            transform: isTransitioning ? "scale(1)" : "scale(0.96)",
+            transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "12px",
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+              color: "#94a3b8",
+              fontWeight: "600",
+            }}
+          >
+            loading
+          </div>
+          <div
+            style={{
+              fontSize: "28px",
+              fontWeight: "800",
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+              color: "#ffffff",
+            }}
+          >
+            {transitioningName}
+          </div>
+        </div>
+      </div>
+
+      <Navigation
+        activeArena={activeArenaKey}
+        onSelectArena={handleSelectArena}
+      />
+
+      <div
+        style={{ width: "100%", height: "100vh", touchAction: "none" }}
+        {...mapPanning}
+      >
+        <Map
+          ref={mapRef}
+          dragPan={false}
+          dragRotate={false}
+          doubleClickZoom={false}
+          scrollZoom={false}
+          boxZoom={false}
+          keyboard={false}
+          touchZoomRotate={false}
+          touchPitch={false}
+          mapboxAccessToken={apiKey}
+          initialViewState={{
+            longitude: ullevi.location.longitude,
+            latitude: ullevi.location.latitude,
+            zoom: ullevi.location.zoom,
+            pitch: ullevi.location.pitch,
+            bearing: ullevi.location.bearing,
+            dragPan: false,
+            dragRotate: false,
+            touchPitch: false,
+            keyboard: false,
+          }}
+          style={{ width: "100%", height: "100vh" }}
+          mapStyle={apiUrl}
+          maxPitch={85}
+          terrain={{
+            source: "mapbox-dem",
+            exaggeration: [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              12,
+              2.8,
+              14,
+              1.5,
+              16,
+              1.2,
             ],
           }}
-        />
-        <RenderObject spots={ullevi.microphones} />
-      </Map>
-    </div>
+        >
+          <Source
+            id="mapbox-dem"
+            type="raster-dem"
+            url="mapbox://mapbox.mapbox-terrain-dem-v1"
+            tileSize={512}
+            maxzoom={14}
+          />
+          {/* Manage 3D elements */}
+          <Layer
+            id="all-buildings"
+            source="composite"
+            source-layer="building"
+            type="fill-extrusion"
+            paint={{
+              "fill-extrusion-height": [
+                "case",
+                [
+                  "in",
+                  ["id"],
+                  ["literal", [3114029, 104112635, "3114029", "104112635"]],
+                ],
+                22,
+                0,
+              ],
+            }}
+          />
+          <RenderObject spots={activeArena.microphones} />
+        </Map>
+      </div>
+    </>
   );
 }

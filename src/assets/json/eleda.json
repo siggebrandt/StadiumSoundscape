@@ -1,0 +1,12 @@
+{
+  "location": {
+    "name": "Eleda Stadion",
+    "longitude": 12.987859,
+    "latitude": 55.583666,
+    "zoom": 17.5,
+    "pitch": 45,
+    "bearing": -45
+  },
+  "microphones": {},
+  "gameEvents": {}
+}
