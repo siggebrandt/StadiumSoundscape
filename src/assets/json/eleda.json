@@ -7,6 +7,35 @@
     "pitch": 45,
     "bearing": -45
   },
-  "microphones": {},
+  "microphones": {
+    "007": {
+      "id": "007",
+      "longitude": 12.988442507381173,
+      "latitude": 55.58364269564674,
+      "altitude": 5,
+      "color": "#e63146"
+    },
+    "010": {
+      "id": "010",
+      "longitude": 12.987265288285208,
+      "latitude": 55.58368160400531,
+      "altitude": 5,
+      "color": "#4ea1de"
+    },
+    "015": {
+      "id": "015",
+      "longitude": 12.987577076895018,
+      "latitude": 55.58317648688251,
+      "altitude": 5,
+      "color": "#80ed09"
+    },
+    "018": {
+      "id": "018",
+      "longitude": 12.988225845885669,
+      "latitude": 55.5840690753541,
+      "altitude": 5,
+      "color": "#ffd169"
+    }
+  },
   "gameEvents": {}
 }
