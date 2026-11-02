@@ -4,7 +4,95 @@ import { useEffect, useId } from "react";
 import { useMap } from "react-map-gl/mapbox";
 import createSoundSphere from "./createSoundSphere";
 
-function createLayer({ id, spots, color, altitude, radius, map }) {
+function getRingBounds(ring) {
+  const bounds = {
+    minX: Infinity,
+    maxX: -Infinity,
+    minY: Infinity,
+    maxY: -Infinity,
+  };
+  ring.forEach(({ x, y }) => {
+    bounds.minX = Math.min(bounds.minX, x);
+    bounds.maxX = Math.max(bounds.maxX, x);
+    bounds.minY = Math.min(bounds.minY, y);
+    bounds.maxY = Math.max(bounds.maxY, y);
+  });
+  return bounds;
+}
+
+function cross(origin, a, b) {
+  return (
+    (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x)
+  );
+}
+
+function createFieldBoundary(spots, origin, meterScale, marginMeters) {
+  const points = Object.values(spots)
+    .map((spot) => {
+      const point = mapboxgl.MercatorCoordinate.fromLngLat(
+        [spot.longitude, spot.latitude],
+        0,
+      );
+      return {
+        x: (point.x - origin.x) / meterScale,
+        y: -(point.y - origin.y) / meterScale,
+      };
+    })
+    .sort((a, b) => a.x - b.x || a.y - b.y);
+
+  const lower = [];
+  points.forEach((point) => {
+    while (
+      lower.length >= 2 &&
+      cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0
+    ) {
+      lower.pop();
+    }
+    lower.push(point);
+  });
+
+  const upper = [];
+  [...points].reverse().forEach((point) => {
+    while (
+      upper.length >= 2 &&
+      cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0
+    ) {
+      upper.pop();
+    }
+    upper.push(point);
+  });
+
+  const hull = [...lower.slice(0, -1), ...upper.slice(0, -1)];
+  const center = hull.reduce(
+    (sum, point) => ({
+      x: sum.x + point.x / hull.length,
+      y: sum.y + point.y / hull.length,
+    }),
+    { x: 0, y: 0 },
+  );
+  const expandedHull = hull.map((point) => {
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    const distance = Math.hypot(dx, dy) || 1;
+    const scale = (distance + marginMeters) / distance;
+    return { x: center.x + dx * scale, y: center.y + dy * scale };
+  });
+
+  return {
+    rings: [expandedHull],
+    ...getRingBounds(expandedHull),
+  };
+}
+
+function createLayer({
+  id,
+  spots,
+  color,
+  altitude,
+  radius,
+  boundaryMarginMeters,
+  map,
+}) {
   const list = Object.values(spots);
 
   // Första spoten är lagrets origin, övriga räknas i meter relativt den
@@ -19,6 +107,12 @@ function createLayer({ id, spots, color, altitude, radius, map }) {
   const raycaster = new THREE.Raycaster();
   const spheres = [];
   let renderer;
+  const fieldBoundary = createFieldBoundary(
+    spots,
+    origin,
+    meterScale,
+    boundaryMarginMeters,
+  );
 
   return {
     id,
@@ -41,8 +135,6 @@ function createLayer({ id, spots, color, altitude, radius, map }) {
           soundName: spot.soundName, // undefined => standardljudet
         });
 
-        const ground =
-          map.queryTerrainElevation([spot.longitude, spot.latitude]) ?? 0;
         const p = mapboxgl.MercatorCoordinate.fromLngLat(
           [spot.longitude, spot.latitude],
           0,
@@ -77,14 +169,18 @@ function createLayer({ id, spots, color, altitude, radius, map }) {
         const g = map.queryTerrainElevation([a.longitude, a.latitude]);
         if (g != null) a.ground = g; // behåll senaste värdet om terrängen inte är laddad
         s.group.position.z = a.ground + a.altitude;
-        s.update(t);
+        s.update(t, {
+          boundaries: [fieldBoundary],
+          centerX: s.group.position.x,
+          centerY: s.group.position.y,
+          rotation: s.group.children[0].rotation.z,
+        });
       });
 
       renderer.resetState();
       renderer.render(scene, camera);
 
-      // Håll animationen igång bara när något spelar
-      if (spheres.some((s) => s.isPlaying())) map.triggerRepaint();
+      map.triggerRepaint();
     },
 
     onRemove() {
@@ -113,9 +209,10 @@ function createLayer({ id, spots, color, altitude, radius, map }) {
 
 export default function RenderObject({
   spots,
-  color = "#000000",
+  color = "#38bdf8",
   altitude = 5,
   radius = 6,
+  boundaryMarginMeters = 8,
 }) {
   const { current: mapRef } = useMap();
   const layerId = useId();
@@ -128,7 +225,15 @@ export default function RenderObject({
 
     const add = () => {
       if (map.getLayer(layerId)) map.removeLayer(layerId);
-      layer = createLayer({ id: layerId, spots, color, altitude, radius, map });
+      layer = createLayer({
+        id: layerId,
+        spots,
+        color,
+        altitude,
+        radius,
+        boundaryMarginMeters,
+        map,
+      });
       map.addLayer(layer);
     };
 
@@ -163,7 +268,7 @@ export default function RenderObject({
       map.off("mousemove", onMove);
       if (map.getLayer(layerId)) map.removeLayer(layerId);
     };
-  }, [mapRef, layerId, spots, color, altitude, radius]);
+  }, [mapRef, layerId, spots, color, altitude, radius, boundaryMarginMeters]);
 
   return null;
 }

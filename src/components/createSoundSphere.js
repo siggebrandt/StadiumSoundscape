@@ -1,62 +1,267 @@
 import * as THREE from "three";
 
-// Bygger en enhetssfär (radie 1) som skalas till `radius` meter via group.scale
+const PARTICLE_COUNT = 4500;
+const ENVELOPE_FRAME_SECONDS = 0.04;
+const audioEnvelopeCache = new Map();
+const standbyEpoch = performance.now();
+let decodingContext;
+
+function loadAudioEnvelope(soundName) {
+  const url = `/sound/${soundName}`;
+  if (!audioEnvelopeCache.has(url)) {
+    const promise = (async () => {
+      decodingContext ??= new window.AudioContext();
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(
+          `Ljudfilen kunde inte hämtas (${response.status}): ${url}`,
+        );
+      }
+
+      const audioBuffer = await decodingContext.decodeAudioData(
+        await response.arrayBuffer(),
+      );
+      const frameSize = Math.max(
+        1,
+        Math.floor(audioBuffer.sampleRate * ENVELOPE_FRAME_SECONDS),
+      );
+      const frameCount = Math.ceil(audioBuffer.length / frameSize);
+      const envelope = new Float32Array(frameCount);
+      const channels = Array.from(
+        { length: audioBuffer.numberOfChannels },
+        (_, index) => audioBuffer.getChannelData(index),
+      );
+
+      for (let frame = 0; frame < frameCount; frame++) {
+        const start = frame * frameSize;
+        const end = Math.min(start + frameSize, audioBuffer.length);
+        let sumSquares = 0;
+        let sampleCount = 0;
+
+        for (const channel of channels) {
+          for (let sample = start; sample < end; sample++) {
+            sumSquares += channel[sample] ** 2;
+            sampleCount++;
+          }
+        }
+
+        envelope[frame] = Math.sqrt(sumSquares / sampleCount);
+      }
+
+      const sortedEnvelope = envelope.slice().sort();
+      const referenceLevel =
+        sortedEnvelope[Math.floor(sortedEnvelope.length * 0.9)] || 1;
+
+      for (let frame = 0; frame < frameCount; frame++) {
+        envelope[frame] = THREE.MathUtils.clamp(
+          envelope[frame] / referenceLevel,
+          0,
+          1,
+        );
+      }
+
+      return {
+        envelope,
+        duration: audioBuffer.duration,
+        frameDuration: frameSize / audioBuffer.sampleRate,
+      };
+    })();
+
+    audioEnvelopeCache.set(url, promise);
+  }
+
+  return audioEnvelopeCache.get(url);
+}
+
+function getEnvelopeVolume(envelopeData, elapsedSeconds) {
+  if (!envelopeData) return 0;
+  const position =
+    ((elapsedSeconds % envelopeData.duration) + envelopeData.duration) %
+    envelopeData.duration;
+  const frame = Math.floor(position / envelopeData.frameDuration);
+  return envelopeData.envelope[frame] ?? 0;
+}
+
+function createParticleTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+
+  const context = canvas.getContext("2d");
+  const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+  gradient.addColorStop(0.45, "rgba(255, 255, 255, 0.9)");
+  gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 32, 32);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function createParticleGeometry(baseColor) {
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(PARTICLE_COUNT * 3);
+  const colors = new Float32Array(PARTICLE_COUNT * 3);
+  const originalPositions = new Float32Array(PARTICLE_COUNT * 3);
+  const randomOffsets = new Float32Array(PARTICLE_COUNT);
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const y = 1 - (i / (PARTICLE_COUNT - 1)) * 2;
+    const radiusAtY = Math.sqrt(1 - y * y);
+    const angle = goldenAngle * i;
+    const x = Math.cos(angle) * radiusAtY;
+    const z = Math.sin(angle) * radiusAtY;
+    const index = i * 3;
+
+    positions[index] = x;
+    positions[index + 1] = y;
+    positions[index + 2] = z;
+    originalPositions[index] = x;
+    originalPositions[index + 1] = y;
+    originalPositions[index + 2] = z;
+    colors[index] = baseColor.r;
+    colors[index + 1] = baseColor.g;
+    colors[index + 2] = baseColor.b;
+    randomOffsets[i] = Math.random() * Math.PI * 2;
+  }
+
+  const positionAttribute = new THREE.BufferAttribute(positions, 3);
+  positionAttribute.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute("position", positionAttribute);
+
+  const colorAttribute = new THREE.BufferAttribute(colors, 3);
+  colorAttribute.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute("color", colorAttribute);
+
+  return { geometry, originalPositions, randomOffsets };
+}
+
+function isInsideRing(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i];
+    const b = ring[j];
+    const crosses =
+      a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+function reflectIntoBoundary(x, y, boundaries) {
+  for (const boundary of boundaries) {
+    const ring = boundary?.rings?.[0];
+    if (!ring?.length) continue;
+
+    if (
+      x >= boundary.minX &&
+      x <= boundary.maxX &&
+      y >= boundary.minY &&
+      y <= boundary.maxY &&
+      isInsideRing(x, y, ring)
+    ) {
+      continue;
+    }
+
+    let nearestX = 0;
+    let nearestY = 0;
+    let nearestDistanceSquared = Infinity;
+
+    for (let i = 0; i < ring.length; i++) {
+      const start = ring[i];
+      const end = ring[(i + 1) % ring.length];
+      const segmentX = end.x - start.x;
+      const segmentY = end.y - start.y;
+      const segmentLengthSquared = segmentX ** 2 + segmentY ** 2;
+      const projection =
+        segmentLengthSquared === 0
+          ? 0
+          : THREE.MathUtils.clamp(
+              ((x - start.x) * segmentX + (y - start.y) * segmentY) /
+                segmentLengthSquared,
+              0,
+              1,
+            );
+      const pointX = start.x + projection * segmentX;
+      const pointY = start.y + projection * segmentY;
+      const distanceSquared = (x - pointX) ** 2 + (y - pointY) ** 2;
+
+      if (distanceSquared < nearestDistanceSquared) {
+        nearestX = pointX;
+        nearestY = pointY;
+        nearestDistanceSquared = distanceSquared;
+      }
+    }
+
+    if (nearestDistanceSquared < Infinity) {
+      return { x: nearestX * 2 - x, y: nearestY * 2 - y };
+    }
+  }
+
+  return null;
+}
+
 export default function createSoundSphere({
-  color = "#e63946",
+  color = "#38bdf8",
   radius = 6,
   soundName = "soundEffects.mp3",
 }) {
   const group = new THREE.Group();
   group.scale.setScalar(radius);
 
-  // Partikelklotet
-  const geom = new THREE.SphereGeometry(1, 48, 48);
-  const orig = geom.attributes.position.array.slice();
-  const cloud = new THREE.Points(
-    geom,
+  const standbyColor = new THREE.Color(color);
+  const { geometry, originalPositions, randomOffsets } =
+    createParticleGeometry(standbyColor);
+  const particleTexture = createParticleTexture();
+  const points = new THREE.Points(
+    geometry,
     new THREE.PointsMaterial({
-      color,
-      size: 3.5 * (window.devicePixelRatio || 1),
-      sizeAttenuation: false,
-    }),
-  );
-
-  const ghost = new THREE.Points(
-    geom,
-    new THREE.PointsMaterial({
-      color,
-      size: 3.5 * (window.devicePixelRatio || 1),
+      color: 0xffffff,
+      vertexColors: true,
+      map: particleTexture,
+      size: 2.2,
       sizeAttenuation: false,
       transparent: true,
-      opacity: 0.3,
-      depthTest: false,
+      opacity: 0.95,
+      blending: THREE.NormalBlending,
+      depthTest: true,
       depthWrite: false,
+      toneMapped: false,
     }),
   );
 
-  const core = new THREE.Mesh(
-    new THREE.SphereGeometry(0.4, 32, 32),
-    new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.5,
-      depthWrite: false,
-    }),
-  );
-
-  // Osynlig, lite större sfär som gör klotet lätt att träffa
   const hit = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 12, 12),
     new THREE.MeshBasicMaterial({ visible: false }),
   );
 
-  group.add(core, cloud, ghost, hit);
+  group.add(points, hit);
 
-  // Ljud
-  let audio, ctx, analyser, data;
+  let audio;
+  let ctx;
+  let analyser;
+  let gain;
+  let data;
   let playing = false;
+  let currentVolume = 0;
+  let currentState = 0;
+  let rotationSpeed = 0.08;
+  let audioEnvelope = null;
 
-  function toggle() {
+  loadAudioEnvelope(soundName).then(
+    (envelopeData) => {
+      audioEnvelope = envelopeData;
+    },
+    (error) => {
+      console.error(
+        "Ljudet kunde inte analyseras för standby-animation:",
+        error,
+      );
+    },
+  );
+
+  function initializeAudio() {
     if (!audio) {
       audio = new Audio(`/sound/${soundName}`);
       audio.crossOrigin = "anonymous";
@@ -71,61 +276,111 @@ export default function createSoundSphere({
       analyser.fftSize = 64;
       analyser.smoothingTimeConstant = 0.8;
       source.connect(analyser);
-      analyser.connect(ctx.destination);
+      gain = ctx.createGain();
+      gain.gain.value = 0;
+      analyser.connect(gain);
+      gain.connect(ctx.destination);
       data = new Uint8Array(analyser.frequencyBinCount);
-    }
-    if (ctx.state === "suspended") ctx.resume();
-
-    if (playing) {
-      audio.pause();
-      playing = false;
-      core.material.opacity = 0.5; // se nedan
-      // borttaget: core.scale.setScalar(1);
-      // borttaget: geom.attributes.position.array.set(orig);
-      // borttaget: geom.attributes.position.needsUpdate = true;
-    } else {
-      audio.play().catch(console.error);
-      playing = true;
-      core.material.opacity = 0.85;
     }
   }
 
-  // Anropas varje frame från lagrets render()
-  function update(timeSeconds) {
-    if (!playing) return;
-    analyser.getByteFrequencyData(data);
-    const bas = data[0] / 255;
-    const mellan = (data[10] || 0) / 128;
-    const time = timeSeconds * 1.5;
+  function toggle() {
+    initializeAudio();
+    if (ctx.state === "suspended") ctx.resume().catch(console.error);
 
-    core.scale.setScalar(1 + bas * 0.25);
-
-    const pos = geom.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      // Enhetssfär, så originalpositionen är redan normaliserad riktning
-      const ox = orig[i * 3];
-      const oy = orig[i * 3 + 1];
-      const oz = orig[i * 3 + 2];
-
-      const wave =
-        Math.sin(ox * 8 + time) *
-        Math.cos(oy * 8 - time * 0.5) *
-        Math.sin(oz * 8 + time);
-      const d = 1 + bas * 0.4 + wave * (0.15 + mellan * 0.25);
-
-      pos.setXYZ(i, ox * d, oy * d, oz * d);
+    if (playing) {
+      playing = false;
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.12);
+    } else {
+      playing = true;
+      if (audio.paused) audio.play().catch(console.error);
+      gain.gain.setTargetAtTime(0.35, ctx.currentTime, 0.12);
     }
-    pos.needsUpdate = true;
+  }
+
+  function update(timeSeconds, collision = null) {
+    let volume = getEnvelopeVolume(
+      audioEnvelope,
+      (performance.now() - standbyEpoch) / 1000,
+    );
+    if (analyser) {
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i];
+      const analyserVolume = sum / data.length / 255;
+      if (playing) volume = analyserVolume;
+    }
+
+    currentVolume = THREE.MathUtils.lerp(currentVolume, volume, 0.12);
+    const targetState = playing ? 1 : 0;
+    currentState = THREE.MathUtils.lerp(currentState, targetState, 0.05);
+
+    const waveSpeed = THREE.MathUtils.lerp(2, 4.5, currentState);
+    const waveAmplitude = THREE.MathUtils.lerp(0.12, 0.35, currentState);
+    const pulseForce = THREE.MathUtils.lerp(0.8, 2.5, currentState);
+    const positions = geometry.attributes.position.array;
+    const boundaries = Array.isArray(collision?.boundaries)
+      ? collision.boundaries
+      : [];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const index = i * 3;
+      const wave =
+        Math.sin(timeSeconds * waveSpeed + randomOffsets[i]) * waveAmplitude;
+      const factor = 1 + wave + currentVolume * pulseForce;
+
+      positions[index] = originalPositions[index] * factor;
+      positions[index + 1] = originalPositions[index + 1] * factor;
+      positions[index + 2] = originalPositions[index + 2] * factor;
+
+      if (boundaries.length > 0) {
+        const rotation = collision.rotation ?? 0;
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        const rotatedX = positions[index] * cos - positions[index + 1] * sin;
+        const rotatedY = positions[index] * sin + positions[index + 1] * cos;
+        const worldX = collision.centerX + rotatedX * radius;
+        const worldY = collision.centerY + rotatedY * radius;
+        const reflected = reflectIntoBoundary(worldX, worldY, boundaries);
+
+        if (reflected) {
+          const reflectedX = (reflected.x - collision.centerX) / radius;
+          const reflectedY = (reflected.y - collision.centerY) / radius;
+          positions[index] = reflectedX * cos + reflectedY * sin;
+          positions[index + 1] = -reflectedX * sin + reflectedY * cos;
+        }
+      }
+    }
+    geometry.attributes.position.needsUpdate = true;
+
+    const targetRotationSpeed = THREE.MathUtils.lerp(0.08, 0.35, currentState);
+    rotationSpeed = THREE.MathUtils.lerp(
+      rotationSpeed,
+      targetRotationSpeed,
+      0.05,
+    );
+    points.rotation.z += rotationSpeed * 0.02;
   }
 
   function dispose() {
-    if (audio) audio.pause();
+    if (audio) {
+      audio.pause();
+      audio.src = "";
+    }
     if (ctx) ctx.close();
-    [geom, core.geometry, hit.geometry].forEach((g) => g.dispose());
-    [cloud.material, ghost.material, core.material, hit.material].forEach((m) =>
-      m.dispose(),
-    );
+    geometry.dispose();
+    particleTexture.dispose();
+    hit.geometry.dispose();
+    points.material.dispose();
+    hit.material.dispose();
   }
 
-  return { group, hit, toggle, update, isPlaying: () => playing, dispose };
+  return {
+    group,
+    hit,
+    toggle,
+    update,
+    isPlaying: () => playing,
+    dispose,
+  };
 }

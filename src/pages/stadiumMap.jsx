@@ -16,6 +16,7 @@ const ARENAS = {
 
 const apiKey = import.meta.env.VITE_API_KEY;
 const apiUrl = import.meta.env.VITE_API_URL;
+const apiUrl1 = import.meta.env.VITE_API_URL1;
 
 export default function StadiumMap() {
   const mapRef = useRef(null);
@@ -156,7 +157,7 @@ export default function StadiumMap() {
             keyboard: false,
           }}
           style={{ width: "100%", height: "100vh" }}
-          mapStyle={apiUrl}
+          mapStyle={apiUrl1}
           maxPitch={85}
           terrain={{
             source: "mapbox-dem",
@@ -199,7 +200,10 @@ export default function StadiumMap() {
               ],
             }}
           />
-          <RenderObject spots={activeArena.microphones} />
+          <RenderObject
+            spots={activeArena.microphones}
+            boundaryMarginMeters={activeArena.particleBoundaryMarginMeters}
+          />
         </Map>
       </div>
     </>
