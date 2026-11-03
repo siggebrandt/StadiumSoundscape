@@ -7,6 +7,40 @@
     "pitch": 45,
     "bearing": -45
   },
+  "match": {
+    "competition": "Allsvenskan 2026",
+    "durationMinutes": 90,
+    "timelineMinutes": 100,
+    "halftimePosition": 50,
+    "sourceUrl": "https://www.espn.co.uk/football/match/_/gameId/401842857/ifk-goteborg-gais",
+    "teams": [
+      {
+        "id": "8222",
+        "name": "GAIS",
+        "shortName": "GAIS",
+        "abbreviation": "GAIS",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/8222.png",
+        "color": "#009d58",
+        "score": 1
+      },
+      {
+        "id": "2556",
+        "name": "IFK Göteborg",
+        "shortName": "Göteborg",
+        "abbreviation": "GOT",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2556.png",
+        "color": "#fabd00",
+        "score": 1
+      }
+    ],
+    "events": [
+      { "minute": 10, "label": "Moment 1" },
+      { "minute": 27, "label": "Moment 2" },
+      { "minute": 45, "label": "Moment 3" },
+      { "minute": 63, "label": "Moment 4" },
+      { "minute": 81, "label": "Moment 5" }
+    ]
+  },
   "particleBoundaryMarginMeters": 8,
   "microphones": {
     "007": {
