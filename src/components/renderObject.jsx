@@ -91,6 +91,10 @@ function createLayer({
   altitude,
   radius,
   boundaryMarginMeters,
+  soundDirectory,
+  onAudioStateChange,
+  onPlaybackModeChange,
+  onPlaybackEnded,
   map,
 }) {
   const list = Object.values(spots);
@@ -107,12 +111,33 @@ function createLayer({
   const raycaster = new THREE.Raycaster();
   const spheres = [];
   let renderer;
+  let playbackSequence = 0;
+  let playbackMode = "paused";
+  let activeSphere = null;
+  let timelinePosition = 0;
   const fieldBoundary = createFieldBoundary(
     spots,
     origin,
     meterScale,
     boundaryMarginMeters,
   );
+
+  function notifyAudioState() {
+    onAudioStateChange(
+      Math.max(...spheres.map((sphere) => sphere.getDuration()), 0),
+      getCurrentTime(),
+    );
+  }
+
+  function getCurrentTime() {
+    const playingSpheres = spheres.filter((sphere) => sphere.isPlaying());
+    if (playingSpheres.length) {
+      timelinePosition = Math.max(
+        ...playingSpheres.map((sphere) => sphere.getCurrentTime()),
+      );
+    }
+    return timelinePosition;
+  }
 
   return {
     id,
@@ -132,8 +157,23 @@ function createLayer({
         const sphere = createSoundSphere({
           color: spot.color ?? color,
           radius: spot.radius ?? radius,
-          soundName: spot.soundName, // undefined => standardljudet
+          soundName: soundDirectory
+            ? `${soundDirectory}/${spot.id}.mp3`
+            : spot.soundName,
+          onAudioStateChange: notifyAudioState,
+          onEnded: () => {
+            if (spheres.every((item) => !item.isPlaying())) {
+              timelinePosition = Math.max(
+                ...spheres.map((item) => item.getDuration()),
+                0,
+              );
+              playbackMode = "paused";
+              activeSphere = null;
+              onPlaybackEnded();
+            }
+          },
         });
+        sphere.prepareAudio();
 
         const p = mapboxgl.MercatorCoordinate.fromLngLat(
           [spot.longitude, spot.latitude],
@@ -154,6 +194,7 @@ function createLayer({
         scene.add(sphere.group);
         spheres.push(sphere);
       });
+      notifyAudioState();
     },
 
     render(gl, matrix) {
@@ -187,6 +228,89 @@ function createLayer({
       spheres.forEach((s) => s.dispose());
     },
 
+    playAll() {
+      const request = ++playbackSequence;
+      const duration = Math.max(
+        ...spheres.map((sphere) => sphere.getDuration()),
+        0,
+      );
+      const startTime =
+        duration > 0 && timelinePosition >= duration ? 0 : timelinePosition;
+      timelinePosition = startTime;
+      spheres.forEach((sphere) => sphere.pause());
+      spheres.forEach((sphere) => sphere.seek(startTime));
+      return Promise.allSettled(spheres.map((sphere) => sphere.play())).then(
+        (results) => {
+          if (
+            request === playbackSequence &&
+            results.some((result) => result.status === "fulfilled")
+          ) {
+            playbackMode = "all";
+            activeSphere = null;
+            onPlaybackModeChange("all");
+          }
+          return results;
+        },
+      );
+    },
+
+    playSolo(selectedSphere) {
+      if (
+        playbackMode === "solo" &&
+        activeSphere === selectedSphere &&
+        selectedSphere.isPlaying()
+      ) {
+        playbackSequence++;
+        timelinePosition = getCurrentTime();
+        selectedSphere.pause();
+        playbackMode = "paused";
+        activeSphere = null;
+        onPlaybackModeChange("paused");
+        return;
+      }
+
+      const request = ++playbackSequence;
+      const currentTime = getCurrentTime();
+      playbackMode = "solo";
+      activeSphere = selectedSphere;
+      onPlaybackModeChange("solo");
+      spheres.forEach((sphere) => {
+        if (sphere !== selectedSphere) sphere.pause();
+      });
+      selectedSphere.seek(currentTime);
+      selectedSphere.play().then(
+        () => {
+          if (request === playbackSequence) {
+            playbackMode = "solo";
+            onPlaybackModeChange("solo");
+          }
+        },
+        (error) => {
+          if (request === playbackSequence) {
+            playbackMode = "paused";
+            activeSphere = null;
+            onPlaybackModeChange("paused");
+          }
+          console.error(error);
+        },
+      );
+    },
+
+    pauseAll() {
+      playbackSequence++;
+      timelinePosition = getCurrentTime();
+      spheres.forEach((sphere) => sphere.pause());
+      playbackMode = "paused";
+      activeSphere = null;
+    },
+
+    seekAll(timeSeconds) {
+      timelinePosition = timeSeconds;
+      spheres.forEach((sphere) => sphere.seek(timeSeconds));
+    },
+
+    getCurrentTime,
+
     // Vilket klot ligger under skärmpunkten? (point i CSS-pixlar)
     pick(point) {
       const { width, height } = map.getCanvas().getBoundingClientRect();
@@ -213,6 +337,11 @@ export default function RenderObject({
   altitude = 5,
   radius = 6,
   boundaryMarginMeters = 8,
+  soundDirectory,
+  onAudioStateChange,
+  onPlaybackModeChange,
+  onPlaybackEnded,
+  controlsRef,
 }) {
   const { current: mapRef } = useMap();
   const layerId = useId();
@@ -232,8 +361,13 @@ export default function RenderObject({
         altitude,
         radius,
         boundaryMarginMeters,
+        soundDirectory,
+        onAudioStateChange,
+        onPlaybackModeChange,
+        onPlaybackEnded,
         map,
       });
+      controlsRef.current = layer;
       map.addLayer(layer);
     };
 
@@ -245,7 +379,7 @@ export default function RenderObject({
         return;
       const hit = layer.pick(e.point);
       if (hit) {
-        hit.toggle();
+        layer.playSolo(hit);
         map.triggerRepaint();
       }
     };
@@ -267,8 +401,22 @@ export default function RenderObject({
       map.off("click", onClick);
       map.off("mousemove", onMove);
       if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (controlsRef.current === layer) controlsRef.current = null;
     };
-  }, [mapRef, layerId, spots, color, altitude, radius, boundaryMarginMeters]);
+  }, [
+    mapRef,
+    layerId,
+    spots,
+    color,
+    altitude,
+    radius,
+    boundaryMarginMeters,
+    soundDirectory,
+    onAudioStateChange,
+    onPlaybackModeChange,
+    onPlaybackEnded,
+    controlsRef,
+  ]);
 
   return null;
 }

@@ -1,86 +1,6 @@
 import * as THREE from "three";
 
 const PARTICLE_COUNT = 4500;
-const ENVELOPE_FRAME_SECONDS = 0.04;
-const audioEnvelopeCache = new Map();
-const standbyEpoch = performance.now();
-let decodingContext;
-
-function loadAudioEnvelope(soundName) {
-  const url = `/sound/${soundName}`;
-  if (!audioEnvelopeCache.has(url)) {
-    const promise = (async () => {
-      decodingContext ??= new window.AudioContext();
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(
-          `Ljudfilen kunde inte hämtas (${response.status}): ${url}`,
-        );
-      }
-
-      const audioBuffer = await decodingContext.decodeAudioData(
-        await response.arrayBuffer(),
-      );
-      const frameSize = Math.max(
-        1,
-        Math.floor(audioBuffer.sampleRate * ENVELOPE_FRAME_SECONDS),
-      );
-      const frameCount = Math.ceil(audioBuffer.length / frameSize);
-      const envelope = new Float32Array(frameCount);
-      const channels = Array.from(
-        { length: audioBuffer.numberOfChannels },
-        (_, index) => audioBuffer.getChannelData(index),
-      );
-
-      for (let frame = 0; frame < frameCount; frame++) {
-        const start = frame * frameSize;
-        const end = Math.min(start + frameSize, audioBuffer.length);
-        let sumSquares = 0;
-        let sampleCount = 0;
-
-        for (const channel of channels) {
-          for (let sample = start; sample < end; sample++) {
-            sumSquares += channel[sample] ** 2;
-            sampleCount++;
-          }
-        }
-
-        envelope[frame] = Math.sqrt(sumSquares / sampleCount);
-      }
-
-      const sortedEnvelope = envelope.slice().sort();
-      const referenceLevel =
-        sortedEnvelope[Math.floor(sortedEnvelope.length * 0.9)] || 1;
-
-      for (let frame = 0; frame < frameCount; frame++) {
-        envelope[frame] = THREE.MathUtils.clamp(
-          envelope[frame] / referenceLevel,
-          0,
-          1,
-        );
-      }
-
-      return {
-        envelope,
-        duration: audioBuffer.duration,
-        frameDuration: frameSize / audioBuffer.sampleRate,
-      };
-    })();
-
-    audioEnvelopeCache.set(url, promise);
-  }
-
-  return audioEnvelopeCache.get(url);
-}
-
-function getEnvelopeVolume(envelopeData, elapsedSeconds) {
-  if (!envelopeData) return 0;
-  const position =
-    ((elapsedSeconds % envelopeData.duration) + envelopeData.duration) %
-    envelopeData.duration;
-  const frame = Math.floor(position / envelopeData.frameDuration);
-  return envelopeData.envelope[frame] ?? 0;
-}
 
 function createParticleTexture() {
   const canvas = document.createElement("canvas");
@@ -206,6 +126,8 @@ export default function createSoundSphere({
   color = "#38bdf8",
   radius = 6,
   soundName = "soundEffects.mp3",
+  onAudioStateChange = () => {},
+  onEnded = () => {},
 }) {
   const group = new THREE.Group();
   group.scale.setScalar(radius);
@@ -239,77 +161,80 @@ export default function createSoundSphere({
   group.add(points, hit);
 
   let audio;
-  let ctx;
-  let analyser;
-  let gain;
-  let data;
   let playing = false;
   let currentVolume = 0;
   let currentState = 0;
   let rotationSpeed = 0.08;
-  let audioEnvelope = null;
-
-  loadAudioEnvelope(soundName).then(
-    (envelopeData) => {
-      audioEnvelope = envelopeData;
-    },
-    (error) => {
-      console.error(
-        "Ljudet kunde inte analyseras för standby-animation:",
-        error,
-      );
-    },
-  );
 
   function initializeAudio() {
     if (!audio) {
-      audio = new Audio(`/sound/${soundName}`);
+      audio = new Audio(`${import.meta.env.BASE_URL}sound/${soundName}`);
       audio.crossOrigin = "anonymous";
-      audio.loop = true;
+      audio.preload = "metadata";
+      audio.volume = 0.35;
+      audio.addEventListener("loadedmetadata", onAudioStateChange);
+      audio.addEventListener("durationchange", onAudioStateChange);
+      audio.addEventListener("timeupdate", onAudioStateChange);
       audio.addEventListener("error", () =>
         console.error("Ljudet kunde inte laddas:", audio.src, audio.error),
       );
-
-      ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const source = ctx.createMediaElementSource(audio);
-      analyser = ctx.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.8;
-      source.connect(analyser);
-      gain = ctx.createGain();
-      gain.gain.value = 0;
-      analyser.connect(gain);
-      gain.connect(ctx.destination);
-      data = new Uint8Array(analyser.frequencyBinCount);
+      audio.addEventListener("ended", () => {
+        playing = false;
+        onAudioStateChange();
+        onEnded();
+      });
     }
+    return audio;
+  }
+
+  async function play() {
+    const sound = initializeAudio();
+    await sound.play();
+    playing = true;
+    onAudioStateChange();
+  }
+
+  function pause() {
+    if (!audio) return;
+    audio.pause();
+    playing = false;
+    onAudioStateChange();
+  }
+
+  function seek(timeSeconds) {
+    const sound = initializeAudio();
+    const seekToAvailablePosition = () => {
+      const duration = sound.duration;
+      sound.currentTime = Number.isFinite(duration)
+        ? THREE.MathUtils.clamp(timeSeconds, 0, duration)
+        : Math.max(0, timeSeconds);
+    };
+
+    if (sound.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      seekToAvailablePosition();
+    } else {
+      sound.addEventListener("loadedmetadata", seekToAvailablePosition, {
+        once: true,
+      });
+    }
+    onAudioStateChange();
   }
 
   function toggle() {
-    initializeAudio();
-    if (ctx.state === "suspended") ctx.resume().catch(console.error);
+    if (playing) pause();
+    else play().catch(console.error);
+  }
 
-    if (playing) {
-      playing = false;
-      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.12);
-    } else {
-      playing = true;
-      if (audio.paused) audio.play().catch(console.error);
-      gain.gain.setTargetAtTime(0.35, ctx.currentTime, 0.12);
-    }
+  function getCurrentTime() {
+    return audio?.currentTime ?? 0;
+  }
+
+  function getDuration() {
+    return Number.isFinite(audio?.duration) ? audio.duration : 0;
   }
 
   function update(timeSeconds, collision = null) {
-    let volume = getEnvelopeVolume(
-      audioEnvelope,
-      (performance.now() - standbyEpoch) / 1000,
-    );
-    if (analyser) {
-      analyser.getByteFrequencyData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) sum += data[i];
-      const analyserVolume = sum / data.length / 255;
-      if (playing) volume = analyserVolume;
-    }
+    const volume = playing ? 0.18 : 0;
 
     currentVolume = THREE.MathUtils.lerp(currentVolume, volume, 0.12);
     const targetState = playing ? 1 : 0;
@@ -367,7 +292,6 @@ export default function createSoundSphere({
       audio.pause();
       audio.src = "";
     }
-    if (ctx) ctx.close();
     geometry.dispose();
     particleTexture.dispose();
     hit.geometry.dispose();
@@ -379,6 +303,12 @@ export default function createSoundSphere({
     group,
     hit,
     toggle,
+    prepareAudio: initializeAudio,
+    play,
+    pause,
+    seek,
+    getCurrentTime,
+    getDuration,
     update,
     isPlaying: () => playing,
     dispose,
