@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 const PARTICLE_COUNT = 4500;
+const DEFAULT_AUDIO_VOLUME = 0.35;
 
 function createParticleTexture() {
   const canvas = document.createElement("canvas");
@@ -125,7 +126,7 @@ function reflectIntoBoundary(x, y, boundaries) {
 export default function createSoundSphere({
   color = "#38bdf8",
   radius = 6,
-  soundName = "soundEffects.mp3",
+  audioUrl = "sound/soundEffects.mp3",
   onAudioStateChange = () => {},
   onEnded = () => {},
 }) {
@@ -161,6 +162,7 @@ export default function createSoundSphere({
   group.add(points, hit);
 
   let audio;
+  let audioVolume = DEFAULT_AUDIO_VOLUME;
   let playing = false;
   let currentVolume = 0;
   let currentState = 0;
@@ -168,10 +170,11 @@ export default function createSoundSphere({
 
   function initializeAudio() {
     if (!audio) {
-      audio = new Audio(`${import.meta.env.BASE_URL}sound/${soundName}`);
+      const baseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+      audio = new Audio(new URL(audioUrl, baseUrl));
       audio.crossOrigin = "anonymous";
       audio.preload = "metadata";
-      audio.volume = 0.35;
+      audio.volume = audioVolume;
       audio.addEventListener("loadedmetadata", onAudioStateChange);
       audio.addEventListener("durationchange", onAudioStateChange);
       audio.addEventListener("timeupdate", onAudioStateChange);
@@ -231,6 +234,11 @@ export default function createSoundSphere({
 
   function getDuration() {
     return Number.isFinite(audio?.duration) ? audio.duration : 0;
+  }
+
+  function setVolume(volume) {
+    audioVolume = THREE.MathUtils.clamp(volume, 0, 1);
+    if (audio) audio.volume = audioVolume;
   }
 
   function update(timeSeconds, collision = null) {
@@ -309,6 +317,7 @@ export default function createSoundSphere({
     seek,
     getCurrentTime,
     getDuration,
+    setVolume,
     update,
     isPlaying: () => playing,
     dispose,

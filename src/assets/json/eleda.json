@@ -9,10 +9,59 @@
   },
   "match": {
     "competition": "Allsvenskan 2026",
-    "durationMinutes": 90,
-    "timelineMinutes": 100,
-    "halftimePosition": 50,
     "sourceUrl": "https://www.espn.com/soccer/match/_/gameId/401842868/hammarby-if-malmo-ff",
+    "timelineSegments": [
+      {
+        "id": "firstHalf",
+        "label": "Första halvlek",
+        "type": "regular",
+        "startTime": "00:00",
+        "endTime": "45:00",
+        "clockStart": 0,
+        "clockEnd": 45
+      },
+      {
+        "id": "firstHalfAddedTime",
+        "label": "Tilläggstid, första halvlek",
+        "type": "added-time",
+        "startTime": "45:00",
+        "endTime": "50:00",
+        "clockStart": 45,
+        "clockEnd": 50
+      },
+      {
+        "id": "halftime",
+        "label": "Halvtid",
+        "type": "halftime",
+        "startTime": "50:00",
+        "endTime": "51:00"
+      },
+      {
+        "id": "secondHalf",
+        "label": "Andra halvlek",
+        "type": "regular",
+        "startTime": "51:00",
+        "endTime": "96:00",
+        "clockStart": 45,
+        "clockEnd": 90
+      },
+      {
+        "id": "secondHalfAddedTime",
+        "label": "Tilläggstid, andra halvlek",
+        "type": "added-time",
+        "startTime": "96:00",
+        "endTime": "101:00",
+        "clockStart": 90,
+        "clockEnd": 95
+      },
+      {
+        "id": "fullTime",
+        "label": "Slut",
+        "type": "full-time",
+        "startTime": "101:00",
+        "endTime": "101:00"
+      }
+    ],
     "teams": [
       {
         "id": "2720",
@@ -34,17 +83,38 @@
       }
     ],
     "events": [
-      { "minute": 8, "label": "Moment 1" },
-      { "minute": 26, "label": "Moment 2" },
-      { "minute": 44, "label": "Moment 3" },
-      { "minute": 62, "label": "Moment 4" },
-      { "minute": 80, "label": "Moment 5" }
+      {
+        "startTime": "08:00",
+        "endTime": "09:00",
+        "label": "Moment 1"
+      },
+      {
+        "startTime": "26:00",
+        "endTime": "27:00",
+        "label": "Moment 2"
+      },
+      {
+        "startTime": "44:00",
+        "endTime": "45:00",
+        "label": "Moment 3"
+      },
+      {
+        "startTime": "68:00",
+        "endTime": "69:00",
+        "label": "Moment 4"
+      },
+      {
+        "startTime": "86:00",
+        "endTime": "87:00",
+        "label": "Moment 5"
+      }
     ]
   },
   "particleBoundaryMarginMeters": 8,
   "microphones": {
     "007": {
       "id": "007",
+      "audioUrl": "sound/soundEffects.mp3",
       "longitude": 12.988442507381173,
       "latitude": 55.58364269564674,
       "altitude": 5,
@@ -52,6 +122,7 @@
     },
     "010": {
       "id": "010",
+      "audioUrl": "sound/soundEffects.mp3",
       "longitude": 12.987265288285208,
       "latitude": 55.58368160400531,
       "altitude": 5,
@@ -59,6 +130,7 @@
     },
     "015": {
       "id": "015",
+      "audioUrl": "sound/soundEffects.mp3",
       "longitude": 12.987577076895018,
       "latitude": 55.58317648688251,
       "altitude": 5,
@@ -66,6 +138,7 @@
     },
     "018": {
       "id": "018",
+      "audioUrl": "sound/soundEffects.mp3",
       "longitude": 12.988225845885669,
       "latitude": 55.5840690753541,
       "altitude": 5,

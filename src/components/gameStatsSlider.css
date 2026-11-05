@@ -258,6 +258,26 @@
   background: #48d2a0;
 }
 
+.audio-timeline__added-time {
+  position: absolute;
+  z-index: 1;
+  top: 24px;
+  height: 6px;
+  border-radius: 10px;
+  background: rgb(255 190 92 / 70%);
+  pointer-events: none;
+}
+
+.audio-timeline__halftime {
+  position: absolute;
+  z-index: 1;
+  top: 24px;
+  height: 6px;
+  border-radius: 10px;
+  background: rgb(72 210 160 / 65%);
+  pointer-events: none;
+}
+
 .audio-timeline__tick-label {
   position: absolute;
   top: -14px;
@@ -366,6 +386,16 @@
   border-radius: 50%;
   background: #25313d;
   transform: translate(-50%, -50%);
+}
+
+.audio-timeline__event-range {
+  position: absolute;
+  z-index: 2;
+  top: 26px;
+  height: 3px;
+  border-radius: 10px;
+  background: #e8edf3;
+  pointer-events: none;
 }
 
 .audio-timeline__event--above .audio-timeline__event-label {

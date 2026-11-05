@@ -27,4 +27,4 @@ dist-ssr
 .env
 .codegraphy/*
 .filequest-tasks.json
-/public/sound/**/*.*
+/public/sound/

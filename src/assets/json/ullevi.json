@@ -9,10 +9,59 @@
   },
   "match": {
     "competition": "Allsvenskan 2026",
-    "durationMinutes": 90,
-    "timelineMinutes": 100,
-    "halftimePosition": 50,
     "sourceUrl": "https://www.espn.co.uk/football/match/_/gameId/401842857/ifk-goteborg-gais",
+    "timelineSegments": [
+      {
+        "id": "firstHalf",
+        "label": "Första halvlek",
+        "type": "regular",
+        "startTime": "00:00",
+        "endTime": "45:00",
+        "clockStart": 0,
+        "clockEnd": 45
+      },
+      {
+        "id": "firstHalfAddedTime",
+        "label": "Tilläggstid, första halvlek",
+        "type": "added-time",
+        "startTime": "45:00",
+        "endTime": "50:00",
+        "clockStart": 45,
+        "clockEnd": 50
+      },
+      {
+        "id": "halftime",
+        "label": "Halvtid",
+        "type": "halftime",
+        "startTime": "50:00",
+        "endTime": "51:00"
+      },
+      {
+        "id": "secondHalf",
+        "label": "Andra halvlek",
+        "type": "regular",
+        "startTime": "51:00",
+        "endTime": "96:00",
+        "clockStart": 45,
+        "clockEnd": 90
+      },
+      {
+        "id": "secondHalfAddedTime",
+        "label": "Tilläggstid, andra halvlek",
+        "type": "added-time",
+        "startTime": "96:00",
+        "endTime": "101:00",
+        "clockStart": 90,
+        "clockEnd": 95
+      },
+      {
+        "id": "fullTime",
+        "label": "Slut",
+        "type": "full-time",
+        "startTime": "101:00",
+        "endTime": "101:00"
+      }
+    ],
     "teams": [
       {
         "id": "8222",
@@ -34,17 +83,38 @@
       }
     ],
     "events": [
-      { "minute": 10, "label": "Moment 1" },
-      { "minute": 27, "label": "Moment 2" },
-      { "minute": 45, "label": "Moment 3" },
-      { "minute": 63, "label": "Moment 4" },
-      { "minute": 81, "label": "Moment 5" }
+      {
+        "startTime": "10:00",
+        "endTime": "10:01",
+        "label": "Moment 1"
+      },
+      {
+        "startTime": "27:00",
+        "endTime": "27:01",
+        "label": "Moment 2"
+      },
+      {
+        "startTime": "45:00",
+        "endTime": "45:01",
+        "label": "Moment 3"
+      },
+      {
+        "startTime": "69:00",
+        "endTime": "69:01",
+        "label": "Moment 4"
+      },
+      {
+        "startTime": "87:00",
+        "endTime": "87:01",
+        "label": "Moment 5"
+      }
     ]
   },
   "particleBoundaryMarginMeters": 8,
   "microphones": {
     "007": {
       "id": "007",
+      "audioUrl": "sound/ullevi/007.mp3",
       "longitude": 11.97959214596796,
       "latitude": 57.70631167357664,
       "altitude": 5,
@@ -52,6 +122,7 @@
     },
     "010": {
       "id": "010",
+      "audioUrl": "sound/ullevi/010.mp3",
       "longitude": 11.980266083740867,
       "latitude": 57.705760867556926,
       "altitude": 5,
@@ -59,6 +130,7 @@
     },
     "014": {
       "id": "014",
+      "audioUrl": "sound/ullevi/014.mp3",
       "longitude": 11.980741257876506,
       "latitude": 57.70646431305478,
       "altitude": 5,
@@ -66,6 +138,7 @@
     },
     "018": {
       "id": "018",
+      "audioUrl": "sound/ullevi/018.mp3",
       "longitude": 11.979948853707825,
       "latitude": 57.70673011007179,
       "altitude": 5,

@@ -1,105 +1,81 @@
 import { useState } from "react";
 import "./gameStatsSlider.css";
 
+function parsePlaybackTime(value) {
+  const match = /^(\d+):([0-5]\d)$/.exec(String(value));
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
 function formatPlaybackTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
   const minutes = Math.floor(seconds / 60);
   const remainder = Math.floor(seconds % 60);
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
-function getTimelineConfig(match) {
-  const halfDuration = match.durationMinutes / 2;
-  const secondHalfOffset = match.halftimePosition - halfDuration;
-  return {
-    halfDuration,
-    secondHalfOffset,
-    secondHalfEnd: match.durationMinutes + secondHalfOffset,
-  };
+function getTimePosition(time, duration) {
+  if (duration <= 0) return 0;
+  return Math.min(Math.max((time / duration) * 100, 0), 100);
 }
 
-function formatMatchMinute(position, match) {
-  const { halfDuration, secondHalfOffset, secondHalfEnd } =
-    getTimelineConfig(match);
-  if (position < halfDuration) return `${Math.floor(position)}'`;
-  if (position < match.halftimePosition) {
-    return `${halfDuration}+${Math.floor(position - halfDuration)}'`;
-  }
-  if (position < match.halftimePosition + 1) return "HT";
-  if (position <= secondHalfEnd) {
-    return `${Math.floor(position - secondHalfOffset)}'`;
-  }
-  return `${match.durationMinutes}+${Math.floor(position - secondHalfEnd)}'`;
+function getTimelineSegments(match) {
+  return match.timelineSegments
+    .map((segment) => ({
+      ...segment,
+      start: parsePlaybackTime(segment.startTime),
+      end: parsePlaybackTime(segment.endTime),
+    }))
+    .filter(
+      (segment) =>
+        segment.start !== null &&
+        segment.end !== null &&
+        segment.end >= segment.start,
+    );
 }
 
-function getEventPosition(event, match) {
-  const { halfDuration, secondHalfOffset, secondHalfEnd } =
-    getTimelineConfig(match);
-  const [minuteText, addedTimeText = "0"] = String(event.minute).split("+");
-  const minute = Number(minuteText);
-  const addedTime = Number(addedTimeText);
-  if (!Number.isFinite(minute) || !Number.isFinite(addedTime)) return 0;
-  if (minute <= halfDuration) return minute + addedTime;
-  if (minute >= match.durationMinutes) return secondHalfEnd + addedTime;
-  return minute + secondHalfOffset + addedTime;
+function formatMatchMinute(time, segments) {
+  const halftime = segments.find((segment) => segment.type === "halftime");
+  if (halftime && time >= halftime.start && time < halftime.end) return "HT";
+
+  const fullTime = segments.find((segment) => segment.type === "full-time");
+  if (fullTime && time >= fullTime.start) return "FT";
+
+  const segment = segments.find(
+    (item) =>
+      ["regular", "added-time"].includes(item.type) &&
+      time >= item.start &&
+      time < item.end,
+  );
+  if (!segment) return "—";
+
+  const segmentDuration = segment.end - segment.start;
+  const matchMinuteDuration = segment.clockEnd - segment.clockStart;
+  const progress =
+    segmentDuration > 0
+      ? Math.min(Math.max((time - segment.start) / segmentDuration, 0), 1)
+      : 0;
+  const matchMinute = segment.clockStart + progress * matchMinuteDuration;
+
+  if (segment.type === "added-time") {
+    return `${segment.clockStart}+${Math.floor(matchMinute - segment.clockStart)}'`;
+  }
+  return `${Math.floor(matchMinute)}'`;
 }
 
-function createTimelineTicks(match) {
-  const { halfDuration, secondHalfOffset, secondHalfEnd } =
-    getTimelineConfig(match);
-  const ticks = [];
-  for (let position = 0; position <= match.timelineMinutes; position++) {
-    if (position === match.halftimePosition) {
-      ticks.push({ position, label: "HALVLEK", kind: "halftime" });
-      continue;
-    }
+function getTimelineTicks(segments) {
+  const firstHalf = segments.find((segment) => segment.id === "firstHalf");
+  const halftime = segments.find((segment) => segment.type === "halftime");
+  const secondHalf = segments.find((segment) => segment.id === "secondHalf");
+  const fullTime = segments.find((segment) => segment.type === "full-time");
 
-    let matchMinute;
-    if (position <= halfDuration) matchMinute = position;
-    else if (position < match.halftimePosition)
-      matchMinute = position - halfDuration;
-    else if (position <= secondHalfEnd)
-      matchMinute = position - secondHalfOffset;
-    else matchMinute = position - secondHalfEnd;
-
-    const isAddedTime =
-      (position > halfDuration && position < match.halftimePosition) ||
-      position > secondHalfEnd;
-    if (!isAddedTime && matchMinute % 5 !== 0) continue;
-
-    const isMajor =
-      !isAddedTime &&
-      (position === 0 ||
-        position === halfDuration ||
-        [15, 30].includes(position) ||
-        [60, 75, 90].includes(matchMinute));
-    const isMedium = !isAddedTime && !isMajor && matchMinute % 5 === 0;
-    const label =
-      position === 0 ||
-      position === 15 ||
-      position === 30 ||
-      position === halfDuration
-        ? `${position}'`
-        : [60, 75, 90].includes(matchMinute)
-          ? `${matchMinute}'`
-          : position === halfDuration + 1
-            ? `${halfDuration}+x`
-            : position === secondHalfEnd + 1
-              ? `${match.durationMinutes}+x`
-              : null;
-
-    ticks.push({
-      position,
-      label,
-      kind: isAddedTime
-        ? "added"
-        : isMajor
-          ? "major"
-          : isMedium
-            ? "medium"
-            : "minor",
-    });
-  }
-  return ticks;
+  return [
+    firstHalf && { time: firstHalf.start, label: "0'", kind: "major" },
+    firstHalf && { time: firstHalf.end, label: "45'", kind: "major" },
+    halftime && { time: halftime.start, label: "HT", kind: "halftime" },
+    secondHalf && { time: secondHalf.end, label: "90'", kind: "major" },
+    fullTime && { time: fullTime.start, label: "FT", kind: "major" },
+  ].filter((tick) => tick && tick.time !== null && tick.time >= 0);
 }
 
 export default function GameStatsSlider({
@@ -112,26 +88,33 @@ export default function GameStatsSlider({
 }) {
   const [draftTime, setDraftTime] = useState(currentTime);
   const [isScrubbing, setIsScrubbing] = useState(false);
-  const displayTime = isScrubbing ? draftTime : currentTime;
-  const timelinePosition =
-    duration > 0
-      ? Math.min(
-          (displayTime / duration) * match.timelineMinutes,
-          match.timelineMinutes,
-        )
-      : 0;
-  const progress = duration > 0 ? (displayTime / duration) * 100 : 0;
-  const ticks = createTimelineTicks(match);
+  const displayTime = Math.min(
+    Math.max(isScrubbing ? draftTime : currentTime, 0),
+    Math.max(duration, 0),
+  );
+  const progress = getTimePosition(displayTime, duration);
+  const segments = getTimelineSegments(match);
+  const ticks = getTimelineTicks(segments);
+  const events = match.events
+    .map((event) => ({
+      ...event,
+      start: parsePlaybackTime(event.startTime),
+      end: parsePlaybackTime(event.endTime),
+    }))
+    .filter(
+      (event) =>
+        event.start !== null && event.end !== null && event.end >= event.start,
+    );
 
   const seek = (value) => {
-    const time = Number(value);
+    const time = Math.min(Math.max(Number(value), 0), Math.max(duration, 0));
     setDraftTime(time);
     onSeek(time);
   };
 
-  const seekToTimelinePosition = (position) => {
+  const seekToTimelinePosition = (time) => {
     if (duration <= 0) return;
-    seek((position / match.timelineMinutes) * duration);
+    seek(time);
   };
 
   return (
@@ -154,7 +137,7 @@ export default function GameStatsSlider({
           <span className="match-scoreboard__separator">—</span>
         </div>
         <div className="match-scoreboard__clock">
-          {formatMatchMinute(timelinePosition, match)}
+          {formatMatchMinute(displayTime, segments)}
         </div>
       </header>
 
@@ -184,7 +167,7 @@ export default function GameStatsSlider({
             <div className="audio-player__time-row">
               <span>{formatPlaybackTime(displayTime)}</span>
               <span className="audio-player__match-clock">
-                {formatMatchMinute(timelinePosition, match)}
+                {formatMatchMinute(displayTime, segments)}
               </span>
               <span>{formatPlaybackTime(duration)}</span>
             </div>
@@ -194,12 +177,56 @@ export default function GameStatsSlider({
                   className="audio-timeline__track"
                   style={{ "--timeline-progress": `${progress}%` }}
                 />
+                {segments
+                  .filter((segment) => segment.type === "added-time")
+                  .map((segment) => {
+                    if (segment.end <= segment.start) return null;
+                    const startPosition = getTimePosition(
+                      segment.start,
+                      duration,
+                    );
+                    const endPosition = getTimePosition(segment.end, duration);
+                    return (
+                      <span
+                        className="audio-timeline__added-time"
+                        key={segment.id}
+                        title={segment.label}
+                        style={{
+                          left: `${startPosition}%`,
+                          width: `${endPosition - startPosition}%`,
+                        }}
+                      />
+                    );
+                  })}
+                {segments
+                  .filter((segment) => segment.type === "halftime")
+                  .map((segment) => {
+                    if (segment.end <= segment.start) return null;
+                    const startPosition = getTimePosition(
+                      segment.start,
+                      duration,
+                    );
+                    const endPosition = getTimePosition(segment.end, duration);
+                    return (
+                      <span
+                        className="audio-timeline__halftime"
+                        key={segment.id}
+                        title={segment.label}
+                        style={{
+                          left: `${startPosition}%`,
+                          width: `${endPosition - startPosition}%`,
+                        }}
+                      />
+                    );
+                  })}
                 <div className="audio-timeline__ticks" aria-hidden="true">
                   {ticks.map((tick) => (
                     <span
                       className={`audio-timeline__tick audio-timeline__tick--${tick.kind}`}
-                      key={tick.position}
-                      style={{ left: `${tick.position}%` }}
+                      key={`${tick.time}-${tick.label}`}
+                      style={{
+                        left: `${getTimePosition(tick.time, duration)}%`,
+                      }}
                     >
                       {tick.label && (
                         <span
@@ -211,31 +238,44 @@ export default function GameStatsSlider({
                     </span>
                   ))}
                 </div>
-                {match.events.map((event, index) => (
-                  <button
-                    className={`audio-timeline__event${index % 2 === 0 ? " audio-timeline__event--above" : " audio-timeline__event--below"}`}
-                    key={`${event.minute}-${event.label}`}
-                    type="button"
-                    style={{
-                      left: `${getEventPosition(event, match)}%`,
-                    }}
-                    title={`${event.minute}' · ${event.label}`}
-                    aria-label={`Hoppa till ${event.minute}', ${event.label}`}
-                    onPointerDown={(pointerEvent) =>
-                      pointerEvent.stopPropagation()
-                    }
-                    onClick={(clickEvent) => {
-                      clickEvent.stopPropagation();
-                      seekToTimelinePosition(getEventPosition(event, match));
-                    }}
-                  >
-                    <span className="audio-timeline__event-label">
-                      {event.label}
+                {events.map((event, index) => {
+                  const startPosition = getTimePosition(event.start, duration);
+                  const endPosition = getTimePosition(event.end, duration);
+                  return (
+                    <span
+                      key={`${event.startTime}-${event.endTime}-${event.label}`}
+                    >
+                      <span
+                        className="audio-timeline__event-range"
+                        aria-hidden="true"
+                        style={{
+                          left: `${startPosition}%`,
+                          width: `${endPosition - startPosition}%`,
+                        }}
+                      />
+                      <button
+                        className={`audio-timeline__event${index % 2 === 0 ? " audio-timeline__event--above" : " audio-timeline__event--below"}`}
+                        type="button"
+                        style={{ left: `${startPosition}%` }}
+                        title={`${event.startTime}–${event.endTime} · ${event.label}`}
+                        aria-label={`Hoppa till ${event.label}, ${event.startTime} till ${event.endTime}`}
+                        onPointerDown={(pointerEvent) =>
+                          pointerEvent.stopPropagation()
+                        }
+                        onClick={(clickEvent) => {
+                          clickEvent.stopPropagation();
+                          seekToTimelinePosition(event.start);
+                        }}
+                      >
+                        <span className="audio-timeline__event-label">
+                          {event.label}
+                        </span>
+                        <span className="audio-timeline__event-stem" />
+                        <span className="audio-timeline__event-dot" />
+                      </button>
                     </span>
-                    <span className="audio-timeline__event-stem" />
-                    <span className="audio-timeline__event-dot" />
-                  </button>
-                ))}
+                  );
+                })}
                 <input
                   aria-label="Hoppa i ljud och match"
                   type="range"
@@ -244,12 +284,13 @@ export default function GameStatsSlider({
                   step={0.1}
                   value={Math.min(displayTime, duration)}
                   disabled={duration <= 0}
-                  onFocus={() => setIsScrubbing(true)}
                   onBlur={() => setIsScrubbing(false)}
                   onPointerDown={() => {
                     setDraftTime(currentTime);
                     setIsScrubbing(true);
                   }}
+                  onKeyDown={() => setIsScrubbing(true)}
+                  onKeyUp={() => setIsScrubbing(false)}
                   onPointerUp={() => setIsScrubbing(false)}
                   onPointerCancel={() => setIsScrubbing(false)}
                   onChange={(event) => seek(event.target.value)}

@@ -21,6 +21,7 @@ const apiUrl1 = import.meta.env.VITE_API_URL1;
 
 export default function StadiumMap() {
   const mapRef = useRef(null);
+  const activeArenaKeyRef = useRef("ullevi");
   const [activeArenaKey, setActiveArenaKey] = useState("ullevi");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitioningName, setTransitioningName] = useState("");
@@ -35,27 +36,36 @@ export default function StadiumMap() {
   const activeArena = ARENAS[activeArenaKey];
   const mapPanning = mapBoxControls(mapRef);
 
-  const handleAudioStateChange = useCallback((duration, currentTime) => {
-    setPlayback((previous) => ({
-      ...previous,
-      duration,
-      currentTime,
-    }));
-  }, []);
+  const handleAudioStateChange = useCallback(
+    (duration, currentTime) => {
+      if (activeArenaKeyRef.current !== activeArenaKey) return;
+      setPlayback((previous) => ({
+        ...previous,
+        duration,
+        currentTime,
+      }));
+    },
+    [activeArenaKey],
+  );
 
   const handlePlaybackEnded = useCallback(() => {
+    if (activeArenaKeyRef.current !== activeArenaKey) return;
     playbackActionRef.current += 1;
     setPlayback((previous) => ({
       ...previous,
       currentTime: previous.duration,
       mode: "paused",
     }));
-  }, []);
+  }, [activeArenaKey]);
 
-  const handlePlaybackModeChange = useCallback((mode) => {
-    if (mode === "solo") playbackActionRef.current += 1;
-    setPlayback((previous) => ({ ...previous, mode }));
-  }, []);
+  const handlePlaybackModeChange = useCallback(
+    (mode) => {
+      if (activeArenaKeyRef.current !== activeArenaKey) return;
+      if (mode === "solo") playbackActionRef.current += 1;
+      setPlayback((previous) => ({ ...previous, mode }));
+    },
+    [activeArenaKey],
+  );
 
   const handleSeek = (time) => {
     audioControlsRef.current?.seekAll(time);
@@ -91,6 +101,7 @@ export default function StadiumMap() {
   const handleSelectArena = (arenaKey) => {
     if (arenaKey === activeArenaKey || isTransitioning) return;
 
+    activeArenaKeyRef.current = arenaKey;
     playbackActionRef.current += 1;
     audioControlsRef.current?.pauseAll();
     setPlayback({ currentTime: 0, duration: 0, mode: "paused" });
@@ -134,6 +145,7 @@ export default function StadiumMap() {
   return (
     <>
       <GameStatsSlider
+        key={activeArenaKey}
         currentTime={playback.currentTime}
         duration={playback.duration}
         playbackMode={playback.mode}

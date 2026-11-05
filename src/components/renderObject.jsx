@@ -91,7 +91,6 @@ function createLayer({
   altitude,
   radius,
   boundaryMarginMeters,
-  soundDirectory,
   onAudioStateChange,
   onPlaybackModeChange,
   onPlaybackEnded,
@@ -157,9 +156,7 @@ function createLayer({
         const sphere = createSoundSphere({
           color: spot.color ?? color,
           radius: spot.radius ?? radius,
-          soundName: soundDirectory
-            ? `${soundDirectory}/${spot.id}.mp3`
-            : spot.soundName,
+          audioUrl: spot.audioUrl,
           onAudioStateChange: notifyAudioState,
           onEnded: () => {
             if (spheres.every((item) => !item.isPlaying())) {
@@ -230,6 +227,7 @@ function createLayer({
 
     playAll() {
       const request = ++playbackSequence;
+      const mixVolume = 0.35 / Math.sqrt(spheres.length);
       const duration = Math.max(
         ...spheres.map((sphere) => sphere.getDuration()),
         0,
@@ -238,6 +236,7 @@ function createLayer({
         duration > 0 && timelinePosition >= duration ? 0 : timelinePosition;
       timelinePosition = startTime;
       spheres.forEach((sphere) => sphere.pause());
+      spheres.forEach((sphere) => sphere.setVolume(mixVolume));
       spheres.forEach((sphere) => sphere.seek(startTime));
       return Promise.allSettled(spheres.map((sphere) => sphere.play())).then(
         (results) => {
@@ -271,6 +270,7 @@ function createLayer({
 
       const request = ++playbackSequence;
       const currentTime = getCurrentTime();
+      selectedSphere.setVolume(0.35);
       playbackMode = "solo";
       activeSphere = selectedSphere;
       onPlaybackModeChange("solo");
@@ -337,7 +337,6 @@ export default function RenderObject({
   altitude = 5,
   radius = 6,
   boundaryMarginMeters = 8,
-  soundDirectory,
   onAudioStateChange,
   onPlaybackModeChange,
   onPlaybackEnded,
@@ -361,7 +360,6 @@ export default function RenderObject({
         altitude,
         radius,
         boundaryMarginMeters,
-        soundDirectory,
         onAudioStateChange,
         onPlaybackModeChange,
         onPlaybackEnded,
@@ -411,7 +409,6 @@ export default function RenderObject({
     altitude,
     radius,
     boundaryMarginMeters,
-    soundDirectory,
     onAudioStateChange,
     onPlaybackModeChange,
     onPlaybackEnded,
