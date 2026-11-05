@@ -450,3 +450,36 @@
     font-size: 6px;
   }
 }
+
+.moment-popups {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.moment-popup {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.moment-popup__text {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  animation: moment-shout ease-in-out forwards;
+}
+
+@keyframes moment-shout {
+  0%, 100% { opacity: 0; }
+  12%, 88% { opacity: 1; }
+}

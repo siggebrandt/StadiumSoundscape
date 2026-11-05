@@ -1,138 +1,278 @@
 import * as THREE from "three";
 import mapboxgl from "mapbox-gl";
-import { useEffect, useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { useMap } from "react-map-gl/mapbox";
-import createSoundSphere from "./createSoundSphere";
+import createSoundFlow from "./createSoundFlow";
 
-function getRingBounds(ring) {
-  const bounds = {
-    minX: Infinity,
-    maxX: -Infinity,
-    minY: Infinity,
-    maxY: -Infinity,
-  };
-  ring.forEach(({ x, y }) => {
-    bounds.minX = Math.min(bounds.minX, x);
-    bounds.maxX = Math.max(bounds.maxX, x);
-    bounds.minY = Math.min(bounds.minY, y);
-    bounds.maxY = Math.max(bounds.maxY, y);
+// Måste matcha STRIPE_COUNT i createSoundFlow.js så att partiklar får samma färg som ränden de släpps från.
+const STRIPE_COUNT = 10;
+
+function createMarkerData(stand, corners, center, standPosition, settings) {
+  let innerEdge = 0;
+  let closestEdgeDistance = Infinity;
+  corners.forEach((corner, edgeIndex) => {
+    const next = corners[(edgeIndex + 1) % corners.length];
+    const midpointX = (corner.x + next.x) / 2;
+    const midpointY = (corner.y + next.y) / 2;
+    const distance =
+      (center.x - midpointX) ** 2 + (center.y - midpointY) ** 2;
+    if (distance < closestEdgeDistance) {
+      innerEdge = edgeIndex;
+      closestEdgeDistance = distance;
+    }
   });
-  return bounds;
-}
-
-function cross(origin, a, b) {
-  return (
-    (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x)
+  const start = corners[innerEdge];
+  const end = corners[(innerEdge + 1) % corners.length];
+  const sideCenter = corners.reduce(
+    (sum, point) => ({
+      x: sum.x + point.x / corners.length,
+      y: sum.y + point.y / corners.length,
+    }),
+    { x: 0, y: 0 },
   );
+  const inward = new THREE.Vector2(
+    sideCenter.x - (start.x + end.x) / 2,
+    sideCenter.y - (start.y + end.y) / 2,
+  ).normalize();
+  const inset = settings?.insetMeters ?? stand.markerInsetMeters ?? 8;
+  const width = settings?.widthMeters ?? stand.markerWidthMeters ?? 4;
+  const [minHeight, maxHeight] =
+    settings?.heightRangeMeters ??
+    stand.markerHeightRangeMeters ??
+    [4, 12];
+  const standDepth = Math.max(
+    2 *
+      Math.hypot(
+        sideCenter.x - (start.x + end.x) / 2,
+        sideCenter.y - (start.y + end.y) / 2,
+      ),
+    1,
+  );
+  const heightPerMeter = (maxHeight - minHeight) / standDepth;
+  const innerZ = minHeight + heightPerMeter * inset - standPosition.height + 0.5;
+  const outerZ = innerZ + heightPerMeter * width;
+  const markerVertices = [
+    [start.x + inward.x * inset, start.y + inward.y * inset, innerZ],
+    [end.x + inward.x * inset, end.y + inward.y * inset, innerZ],
+    [
+      end.x + inward.x * (inset + width),
+      end.y + inward.y * (inset + width),
+      outerZ,
+    ],
+    [
+      start.x + inward.x * (inset + width),
+      start.y + inward.y * (inset + width),
+      outerZ,
+    ],
+  ].flatMap(([x, y, z]) => [x, y, z]);
+
+  const emitterSpacing = stand.emitterSpacingMeters ?? 4;
+  const alongLength = Math.hypot(end.x - start.x, end.y - start.y);
+  const alongDivisions = Math.max(1, Math.ceil(alongLength / emitterSpacing));
+  const widthDivisions = Math.max(1, Math.ceil(width / emitterSpacing));
+  const emitters = [];
+  for (let column = 0; column < alongDivisions; column++) {
+    const along = (column + 0.5) / alongDivisions;
+    for (let row = 0; row < widthDivisions; row++) {
+      const across = (row + 0.5) / widthDivisions;
+      const distanceFromInnerEdge = inset + width * across;
+      const height =
+        minHeight + heightPerMeter * distanceFromInnerEdge;
+      emitters.push({
+        colorIndex: Math.floor(along * STRIPE_COUNT) % 2,
+        x:
+          start.x * (1 - along) +
+          end.x * along +
+          inward.x * distanceFromInnerEdge,
+        y:
+          start.y * (1 - along) +
+          end.y * along +
+          inward.y * distanceFromInnerEdge,
+        // Emit away from the stand footprint and onto the pitch.
+        directionX: -inward.x,
+        directionY: -inward.y,
+        heightOffset: height - standPosition.height,
+      });
+    }
+  }
+
+  return { markerVertices, emitters };
 }
 
-function createFieldBoundary(spots, origin, meterScale, marginMeters) {
-  const points = Object.values(spots)
-    .map((spot) => {
+function createStandEmitters(
+  stands,
+  origin,
+  meterScale,
+  standPositions,
+  markerSettings = {},
+) {
+  const center = standPositions.reduce(
+    (sum, point) => ({
+      x: sum.x + point.x / standPositions.length,
+      y: sum.y + point.y / standPositions.length,
+    }),
+    { x: 0, y: 0 },
+  );
+
+  return stands.map((stand, index) => {
+    const corners = stand.footprint.map(([longitude, latitude]) => {
       const point = mapboxgl.MercatorCoordinate.fromLngLat(
-        [spot.longitude, spot.latitude],
+        [longitude, latitude],
         0,
       );
       return {
         x: (point.x - origin.x) / meterScale,
         y: -(point.y - origin.y) / meterScale,
       };
-    })
-    .sort((a, b) => a.x - b.x || a.y - b.y);
+    });
+    const sideCenter = corners.reduce(
+      (sum, point) => ({
+        x: sum.x + point.x / corners.length,
+        y: sum.y + point.y / corners.length,
+      }),
+      { x: 0, y: 0 },
+    );
+    const inward = new THREE.Vector2(center.x - sideCenter.x, center.y - sideCenter.y).normalize();
+    const alongLength = Math.hypot(
+      corners[1].x - corners[0].x,
+      corners[1].y - corners[0].y,
+    );
+    const depth = Math.hypot(
+      corners[2].x - corners[1].x,
+      corners[2].y - corners[1].y,
+    );
+    const spacing = stand.emitterSpacingMeters ?? 4;
+    const alongDivisions = Math.max(
+      1,
+      Math.ceil(alongLength / spacing),
+    );
+    const depthDivisions = Math.max(1, Math.ceil(depth / spacing));
+    const heightRange = stand.heightRangeMeters ?? [2, 10];
+    const emitters = [];
 
-  const lower = [];
-  points.forEach((point) => {
-    while (
-      lower.length >= 2 &&
-      cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0
-    ) {
-      lower.pop();
+    for (let row = 0; row < depthDivisions; row++) {
+      const v = (row + 0.5) / depthDivisions;
+      for (let column = 0; column < alongDivisions; column++) {
+        const u = (column + 0.5) / alongDivisions;
+        const emitter = {
+          x:
+            corners[0].x * (1 - u) * (1 - v) +
+            corners[1].x * u * (1 - v) +
+            corners[2].x * u * v +
+            corners[3].x * (1 - u) * v,
+          y:
+            corners[0].y * (1 - u) * (1 - v) +
+            corners[1].y * u * (1 - v) +
+            corners[2].y * u * v +
+            corners[3].y * (1 - u) * v,
+        };
+        const height =
+          heightRange[0] + Math.random() * (heightRange[1] - heightRange[0]);
+        emitters.push({
+          ...emitter,
+          directionX: inward.x,
+          directionY: inward.y,
+          heightOffset: height - standPositions[index].height,
+        });
+      }
     }
-    lower.push(point);
+    const markerData = stand.marker
+      ? createMarkerData(
+          stand,
+          corners,
+          center,
+          standPositions[index],
+          markerSettings[stand.id],
+        )
+      : null;
+    return {
+      emitters: markerData?.emitters ?? emitters,
+      markerVertices: markerData?.markerVertices ?? null,
+      corners,
+      center,
+    };
   });
-
-  const upper = [];
-  [...points].reverse().forEach((point) => {
-    while (
-      upper.length >= 2 &&
-      cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0
-    ) {
-      upper.pop();
-    }
-    upper.push(point);
-  });
-
-  const hull = [...lower.slice(0, -1), ...upper.slice(0, -1)];
-  const center = hull.reduce(
-    (sum, point) => ({
-      x: sum.x + point.x / hull.length,
-      y: sum.y + point.y / hull.length,
-    }),
-    { x: 0, y: 0 },
-  );
-  const expandedHull = hull.map((point) => {
-    const dx = point.x - center.x;
-    const dy = point.y - center.y;
-    const distance = Math.hypot(dx, dy) || 1;
-    const scale = (distance + marginMeters) / distance;
-    return { x: center.x + dx * scale, y: center.y + dy * scale };
-  });
-
-  return {
-    rings: [expandedHull],
-    ...getRingBounds(expandedHull),
-  };
 }
 
 function createLayer({
   id,
-  spots,
+  stands,
   color,
   altitude,
-  radius,
-  boundaryMarginMeters,
   onAudioStateChange,
   onPlaybackModeChange,
   onPlaybackEnded,
+  markerSettings,
   map,
 }) {
-  const list = Object.values(spots);
+  const list = Object.entries(stands ?? {})
+    .map(([id, stand]) => ({ ...stand, id }))
+    .filter((stand) => Array.isArray(stand.footprint) && stand.footprint.length === 4)
+    .map((stand) => {
+      const [longitude, latitude] = stand.footprint
+        .reduce(
+          (sum, point) => [sum[0] + point[0] / 4, sum[1] + point[1] / 4],
+          [0, 0],
+        );
+      return { ...stand, longitude, latitude };
+    });
+  if (!list.length) throw new Error("No valid stand areas are configured.");
 
-  // Första spoten är lagrets origin, övriga räknas i meter relativt den
-  const origin = mapboxgl.MercatorCoordinate.fromLngLat(
-    [list[0].longitude, list[0].latitude],
+  const modelCenter = list.reduce(
+    (center, stand) => ({
+      longitude: center.longitude + stand.longitude / list.length,
+      latitude: center.latitude + stand.latitude / list.length,
+    }),
+    { longitude: 0, latitude: 0 },
+  );
+  const modelOrigin = mapboxgl.MercatorCoordinate.fromLngLat(
+    [modelCenter.longitude, modelCenter.latitude],
     0,
   );
-  const meterScale = origin.meterInMercatorCoordinateUnits();
+  const modelScale = modelOrigin.meterInMercatorCoordinateUnits();
+  const modelTransform = new THREE.Matrix4()
+    .makeTranslation(modelOrigin.x, modelOrigin.y, modelOrigin.z)
+    .scale(new THREE.Vector3(modelScale, -modelScale, modelScale));
 
   const camera = new THREE.Camera();
   const scene = new THREE.Scene();
-  const raycaster = new THREE.Raycaster();
-  const spheres = [];
+  const soundFlows = [];
   let renderer;
   let playbackSequence = 0;
   let playbackMode = "paused";
-  let activeSphere = null;
+  let activeFlow = null;
   let timelinePosition = 0;
-  const fieldBoundary = createFieldBoundary(
-    spots,
-    origin,
-    meterScale,
-    boundaryMarginMeters,
+  const localPositions = list.map((stand) => {
+    const point = mapboxgl.MercatorCoordinate.fromLngLat(
+      [stand.longitude, stand.latitude],
+      0,
+    );
+    return {
+      x: (point.x - modelOrigin.x) / modelScale,
+      y: -(point.y - modelOrigin.y) / modelScale,
+      height: stand.altitude ?? altitude,
+    };
+  });
+  const standData = createStandEmitters(
+    list,
+    modelOrigin,
+    modelScale,
+    localPositions,
+    markerSettings,
   );
 
   function notifyAudioState() {
     onAudioStateChange(
-      Math.max(...spheres.map((sphere) => sphere.getDuration()), 0),
+      Math.max(...soundFlows.map((flow) => flow.getDuration()), 0),
       getCurrentTime(),
     );
   }
 
   function getCurrentTime() {
-    const playingSpheres = spheres.filter((sphere) => sphere.isPlaying());
-    if (playingSpheres.length) {
+    const playingFlows = soundFlows.filter((flow) => flow.isPlaying());
+    if (playingFlows.length) {
       timelinePosition = Math.max(
-        ...playingSpheres.map((sphere) => sphere.getCurrentTime()),
+        ...playingFlows.map((flow) => flow.getCurrentTime()),
       );
     }
     return timelinePosition;
@@ -142,7 +282,7 @@ function createLayer({
     id,
     type: "custom",
     renderingMode: "3d",
-    slot: "middle",
+    slot: "top",
 
     onAdd(m, gl) {
       renderer = new THREE.WebGLRenderer({
@@ -152,67 +292,54 @@ function createLayer({
       });
       renderer.autoClear = false;
 
-      list.forEach((spot) => {
-        const sphere = createSoundSphere({
-          color: spot.color ?? color,
-          radius: spot.radius ?? radius,
-          audioUrl: spot.audioUrl,
+      list.forEach((stand, index) => {
+        const soundFlow = createSoundFlow({
+          color: stand.color ?? color,
+          colors: stand.colors,
+          emitters: standData[index].emitters,
+          markerVertices: standData[index].markerVertices,
+          audioUrl: stand.audioUrl,
           onAudioStateChange: notifyAudioState,
           onEnded: () => {
-            if (spheres.every((item) => !item.isPlaying())) {
+            if (soundFlows.every((item) => !item.isPlaying())) {
               timelinePosition = Math.max(
-                ...spheres.map((item) => item.getDuration()),
+                ...soundFlows.map((item) => item.getDuration()),
                 0,
               );
+              soundFlows.forEach((item) => item.setEmissionEnabled(false));
               playbackMode = "paused";
-              activeSphere = null;
+              activeFlow = null;
               onPlaybackEnded();
             }
           },
         });
-        sphere.prepareAudio();
-
-        const p = mapboxgl.MercatorCoordinate.fromLngLat(
-          [spot.longitude, spot.latitude],
-          0,
-        );
-        sphere.group.position.set(
-          (p.x - origin.x) / meterScale,
-          -(p.y - origin.y) / meterScale,
-          0,
-        );
-        sphere.anchor = {
-          longitude: spot.longitude,
-          latitude: spot.latitude,
-          altitude: spot.altitude ?? altitude,
+        soundFlow.prepareAudio();
+        soundFlow.group.position.set(0, 0, 0);
+        soundFlow.anchor = {
+          longitude: stand.longitude,
+          latitude: stand.latitude,
+          altitude: stand.altitude ?? altitude,
           ground: 0,
         };
 
-        scene.add(sphere.group);
-        spheres.push(sphere);
+        scene.add(soundFlow.group);
+        soundFlows.push(soundFlow);
       });
       notifyAudioState();
     },
 
     render(gl, matrix) {
-      const m = new THREE.Matrix4().fromArray(matrix);
-      const l = new THREE.Matrix4()
-        .makeTranslation(origin.x, origin.y, origin.z)
-        .scale(new THREE.Vector3(meterScale, -meterScale, meterScale));
-      camera.projectionMatrix = m.multiply(l);
+      camera.projectionMatrix
+        .copy(new THREE.Matrix4().fromArray(matrix))
+        .multiply(modelTransform);
 
       const t = performance.now() / 1000;
-      spheres.forEach((s) => {
-        const a = s.anchor;
+      soundFlows.forEach((flow) => {
+        const a = flow.anchor;
         const g = map.queryTerrainElevation([a.longitude, a.latitude]);
         if (g != null) a.ground = g; // behåll senaste värdet om terrängen inte är laddad
-        s.group.position.z = a.ground + a.altitude;
-        s.update(t, {
-          boundaries: [fieldBoundary],
-          centerX: s.group.position.x,
-          centerY: s.group.position.y,
-          rotation: s.group.children[0].rotation.z,
-        });
+        flow.group.position.z = a.ground + a.altitude;
+        flow.update(t);
       });
 
       renderer.resetState();
@@ -222,63 +349,91 @@ function createLayer({
     },
 
     onRemove() {
-      spheres.forEach((s) => s.dispose());
+      soundFlows.forEach((flow) => flow.dispose());
     },
 
     playAll() {
       const request = ++playbackSequence;
-      const mixVolume = 0.35 / Math.sqrt(spheres.length);
+      const tracksByUrl = new Map();
+      soundFlows.forEach((flow) => {
+        const url = flow.getAudioUrl();
+        const track = tracksByUrl.get(url) ?? [];
+        track.push(flow);
+        tracksByUrl.set(url, track);
+      });
+      const trackGroups = [...tracksByUrl.values()];
+      const trackLeaders = trackGroups.map(([leader]) => leader);
+      const mixVolume = 0.35 / Math.sqrt(trackLeaders.length);
       const duration = Math.max(
-        ...spheres.map((sphere) => sphere.getDuration()),
+        ...soundFlows.map((flow) => flow.getDuration()),
         0,
       );
       const startTime =
         duration > 0 && timelinePosition >= duration ? 0 : timelinePosition;
       timelinePosition = startTime;
-      spheres.forEach((sphere) => sphere.pause());
-      spheres.forEach((sphere) => sphere.setVolume(mixVolume));
-      spheres.forEach((sphere) => sphere.seek(startTime));
-      return Promise.allSettled(spheres.map((sphere) => sphere.play())).then(
-        (results) => {
-          if (
-            request === playbackSequence &&
-            results.some((result) => result.status === "fulfilled")
-          ) {
-            playbackMode = "all";
-            activeSphere = null;
-            onPlaybackModeChange("all");
+      soundFlows.forEach((flow) => {
+        flow.pause();
+        flow.setEmissionEnabled(false);
+        flow.seek(startTime);
+      });
+      const playRequests = trackGroups.map(([leader, ...followers]) => {
+        leader.setVolume(mixVolume);
+        const playRequest = leader.play();
+        followers.forEach((flow) => {
+          flow.shareAudioAnalysis(leader);
+          flow.setEmissionEnabled(true);
+        });
+        return playRequest;
+      });
+      return Promise.allSettled(playRequests).then((results) => {
+        trackGroups.forEach(([, ...followers], index) => {
+          if (results[index].status === "rejected") {
+            followers.forEach((flow) => flow.setEmissionEnabled(false));
           }
-          return results;
-        },
-      );
+        });
+        if (
+          request === playbackSequence &&
+          results.some((result) => result.status === "fulfilled")
+        ) {
+          playbackMode = "all";
+          activeFlow = null;
+          onPlaybackModeChange("all");
+        }
+        return results;
+      });
     },
 
-    playSolo(selectedSphere) {
+    playSolo(selectedFlow) {
       if (
         playbackMode === "solo" &&
-        activeSphere === selectedSphere &&
-        selectedSphere.isPlaying()
+        activeFlow === selectedFlow &&
+        selectedFlow.isPlaying()
       ) {
         playbackSequence++;
         timelinePosition = getCurrentTime();
-        selectedSphere.pause();
+        soundFlows.forEach((flow) => {
+          flow.pause();
+          flow.setEmissionEnabled(false);
+        });
         playbackMode = "paused";
-        activeSphere = null;
+        activeFlow = null;
         onPlaybackModeChange("paused");
         return;
       }
 
       const request = ++playbackSequence;
       const currentTime = getCurrentTime();
-      selectedSphere.setVolume(0.35);
-      playbackMode = "solo";
-      activeSphere = selectedSphere;
-      onPlaybackModeChange("solo");
-      spheres.forEach((sphere) => {
-        if (sphere !== selectedSphere) sphere.pause();
+      soundFlows.forEach((flow) => {
+        flow.pause();
+        flow.setEmissionEnabled(false);
       });
-      selectedSphere.seek(currentTime);
-      selectedSphere.play().then(
+      selectedFlow.setVolume(0.35);
+      selectedFlow.setEmissionEnabled(true);
+      playbackMode = "solo";
+      activeFlow = selectedFlow;
+      onPlaybackModeChange("solo");
+      selectedFlow.seek(currentTime);
+      selectedFlow.play().then(
         () => {
           if (request === playbackSequence) {
             playbackMode = "solo";
@@ -288,7 +443,7 @@ function createLayer({
         (error) => {
           if (request === playbackSequence) {
             playbackMode = "paused";
-            activeSphere = null;
+            activeFlow = null;
             onPlaybackModeChange("paused");
           }
           console.error(error);
@@ -299,54 +454,131 @@ function createLayer({
     pauseAll() {
       playbackSequence++;
       timelinePosition = getCurrentTime();
-      spheres.forEach((sphere) => sphere.pause());
+      soundFlows.forEach((flow) => {
+        flow.pause();
+        flow.setEmissionEnabled(false);
+      });
       playbackMode = "paused";
-      activeSphere = null;
+      activeFlow = null;
     },
 
     seekAll(timeSeconds) {
       timelinePosition = timeSeconds;
-      spheres.forEach((sphere) => sphere.seek(timeSeconds));
+      soundFlows.forEach((flow) => flow.seek(timeSeconds));
     },
 
     getCurrentTime,
 
-    // Vilket klot ligger under skärmpunkten? (point i CSS-pixlar)
+    updateMarkerSettings(standId, settings) {
+      const index = list.findIndex((stand) => stand.id === standId);
+      if (index < 0 || !standData[index].markerVertices) return;
+      const markerData = createMarkerData(
+        list[index],
+        standData[index].corners,
+        standData[index].center,
+        localPositions[index],
+        settings,
+      );
+      soundFlows[index].setMarkerVertices(markerData.markerVertices);
+      soundFlows[index].setEmitters(markerData.emitters);
+      map.triggerRepaint();
+    },
+
+    // Skärmposition (CSS-pixlar) för mitten av en markering, eller null om den inte syns.
+    getStandScreenPoint(standId) {
+      const index = list.findIndex((stand) => stand.id === standId);
+      const flow = soundFlows[index];
+      if (!flow?.hasMarker) return null;
+      const { width, height } = map.getCanvas().getBoundingClientRect();
+      const positions = flow.hit.geometry.getAttribute("position");
+      let x = 0;
+      let y = 0;
+      for (let vertex = 0; vertex < positions.count; vertex++) {
+        const clip = new THREE.Vector4(
+          positions.getX(vertex),
+          positions.getY(vertex),
+          positions.getZ(vertex) + flow.group.position.z,
+          1,
+        ).applyMatrix4(camera.projectionMatrix);
+        if (clip.w <= 0) return null;
+        x += ((clip.x / clip.w + 1) * width) / 2;
+        y += ((1 - clip.y / clip.w) * height) / 2;
+      }
+      return { x: x / positions.count, y: y / positions.count };
+    },
+
+    // Vilket ljudflöde ligger under skärmpunkten? (point i CSS-pixlar)
     pick(point) {
       const { width, height } = map.getCanvas().getBoundingClientRect();
-      const x = (point.x / width) * 2 - 1;
-      const y = 1 - (point.y / height) * 2;
+      const screenPoint = { x: point.x, y: point.y };
+      const containsPoint = (polygon) => {
+        let inside = false;
+        for (
+          let current = 0, previous = polygon.length - 1;
+          current < polygon.length;
+          previous = current++
+        ) {
+          const a = polygon[current];
+          const b = polygon[previous];
+          const intersects =
+            a.y > screenPoint.y !== b.y > screenPoint.y &&
+            screenPoint.x <
+              ((b.x - a.x) * (screenPoint.y - a.y)) / (b.y - a.y) + a.x;
+          if (intersects) inside = !inside;
+        }
+        return inside;
+      };
 
-      const inv = camera.projectionMatrix.clone().invert();
-      const near = new THREE.Vector3(x, y, -1).applyMatrix4(inv);
-      const far = new THREE.Vector3(x, y, 1).applyMatrix4(inv);
-      raycaster.set(near, far.sub(near).normalize());
-
-      const hits = raycaster.intersectObjects(
-        spheres.map((s) => s.hit),
-        false,
-      );
-      return hits.length ? spheres.find((s) => s.hit === hits[0].object) : null;
+      for (let index = soundFlows.length - 1; index >= 0; index--) {
+        const flow = soundFlows[index];
+        if (!flow.hasMarker) continue;
+        const positions = flow.hit.geometry.getAttribute("position");
+        const polygon = [];
+        for (let vertex = 0; vertex < positions.count; vertex++) {
+          const clip = new THREE.Vector4(
+            positions.getX(vertex),
+            positions.getY(vertex),
+            positions.getZ(vertex) + flow.group.position.z,
+            1,
+          ).applyMatrix4(camera.projectionMatrix);
+          if (clip.w <= 0) {
+            polygon.length = 0;
+            break;
+          }
+          polygon.push({
+            x: ((clip.x / clip.w + 1) * width) / 2,
+            y: ((1 - clip.y / clip.w) * height) / 2,
+          });
+        }
+        if (polygon.length === positions.count && containsPoint(polygon)) {
+          return flow;
+        }
+      }
+      return null;
     },
   };
 }
 
 export default function RenderObject({
-  spots,
+  stands,
   color = "#38bdf8",
   altitude = 5,
-  radius = 6,
-  boundaryMarginMeters = 8,
   onAudioStateChange,
   onPlaybackModeChange,
   onPlaybackEnded,
+  markerSettings = {},
   controlsRef,
 }) {
   const { current: mapRef } = useMap();
   const layerId = useId();
+  const markerSettingsRef = useRef(markerSettings);
 
   useEffect(() => {
-    if (!mapRef || !Object.keys(spots).length) return;
+    markerSettingsRef.current = markerSettings;
+  }, [markerSettings]);
+
+  useEffect(() => {
+    if (!mapRef || !Object.keys(stands ?? {}).length) return;
     const map = mapRef.getMap();
     let layer = null;
     let down = null;
@@ -355,14 +587,13 @@ export default function RenderObject({
       if (map.getLayer(layerId)) map.removeLayer(layerId);
       layer = createLayer({
         id: layerId,
-        spots,
+        stands,
         color,
         altitude,
-        radius,
-        boundaryMarginMeters,
         onAudioStateChange,
         onPlaybackModeChange,
         onPlaybackEnded,
+        markerSettings: markerSettingsRef.current,
         map,
       });
       controlsRef.current = layer;
@@ -386,15 +617,15 @@ export default function RenderObject({
       map.getCanvas().style.cursor = layer.pick(e.point) ? "pointer" : "";
     };
 
-    if (map.loaded()) add();
-    else map.once("idle", add);
+    if (map.isStyleLoaded()) add();
+    else map.once("style.load", add);
 
     map.on("mousedown", onDown);
     map.on("click", onClick);
     map.on("mousemove", onMove);
 
     return () => {
-      map.off("idle", add);
+      map.off("style.load", add);
       map.off("mousedown", onDown);
       map.off("click", onClick);
       map.off("mousemove", onMove);
@@ -404,11 +635,9 @@ export default function RenderObject({
   }, [
     mapRef,
     layerId,
-    spots,
+    stands,
     color,
     altitude,
-    radius,
-    boundaryMarginMeters,
     onAudioStateChange,
     onPlaybackModeChange,
     onPlaybackEnded,

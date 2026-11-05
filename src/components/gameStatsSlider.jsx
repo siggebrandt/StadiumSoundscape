@@ -1,4 +1,5 @@
 import { useState } from "react";
+import MomentPopups from "./momentPopups";
 import "./gameStatsSlider.css";
 
 function parsePlaybackTime(value) {
@@ -19,41 +20,71 @@ function getTimePosition(time, duration) {
   return Math.min(Math.max((time / duration) * 100, 0), 100);
 }
 
-function getTimelineSegments(match) {
-  return match.timelineSegments
+function getTimelineSegments(match, duration) {
+  const parsedSegments = match.timelineSegments
     .map((segment) => ({
       ...segment,
-      start: parsePlaybackTime(segment.startTime),
-      end: parsePlaybackTime(segment.endTime),
+      matchStart: parsePlaybackTime(segment.startTime),
+      matchEnd: parsePlaybackTime(segment.endTime),
     }))
     .filter(
       (segment) =>
-        segment.start !== null &&
-        segment.end !== null &&
-        segment.end >= segment.start,
+        segment.matchStart !== null &&
+        segment.matchEnd !== null &&
+        segment.matchEnd >= segment.matchStart,
     );
+  const matchDuration = Math.max(
+    ...parsedSegments.map((segment) => segment.matchEnd),
+    0,
+  );
+  // Match-clock timestamps are compressed onto the audio file's real duration.
+  const scale = matchDuration > 0 ? duration / matchDuration : 0;
+
+  return parsedSegments.map((segment) => ({
+    ...segment,
+    start: segment.matchStart * scale,
+    end: segment.matchEnd * scale,
+  }));
 }
 
 function formatMatchMinute(time, segments) {
+  const matchDuration = Math.max(
+    ...segments.map((segment) => segment.matchEnd),
+    0,
+  );
+  const duration = Math.max(
+    ...segments.map((segment) => segment.end),
+    0,
+  );
+  const matchTime = duration > 0 ? (time / duration) * matchDuration : 0;
   const halftime = segments.find((segment) => segment.type === "halftime");
-  if (halftime && time >= halftime.start && time < halftime.end) return "HT";
+  if (
+    halftime &&
+    matchTime >= halftime.matchStart &&
+    matchTime < halftime.matchEnd
+  ) {
+    return "HT";
+  }
 
   const fullTime = segments.find((segment) => segment.type === "full-time");
-  if (fullTime && time >= fullTime.start) return "FT";
+  if (fullTime && matchTime >= fullTime.matchStart) return "FT";
 
   const segment = segments.find(
     (item) =>
       ["regular", "added-time"].includes(item.type) &&
-      time >= item.start &&
-      time < item.end,
+      matchTime >= item.matchStart &&
+      matchTime < item.matchEnd,
   );
   if (!segment) return "—";
 
-  const segmentDuration = segment.end - segment.start;
+  const segmentDuration = segment.matchEnd - segment.matchStart;
   const matchMinuteDuration = segment.clockEnd - segment.clockStart;
   const progress =
     segmentDuration > 0
-      ? Math.min(Math.max((time - segment.start) / segmentDuration, 0), 1)
+      ? Math.min(
+          Math.max((matchTime - segment.matchStart) / segmentDuration, 0),
+          1,
+        )
       : 0;
   const matchMinute = segment.clockStart + progress * matchMinuteDuration;
 
@@ -85,6 +116,7 @@ export default function GameStatsSlider({
   match,
   onSeek,
   onTogglePlayback,
+  getStandScreenPoint,
 }) {
   const [draftTime, setDraftTime] = useState(currentTime);
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -93,18 +125,43 @@ export default function GameStatsSlider({
     Math.max(duration, 0),
   );
   const progress = getTimePosition(displayTime, duration);
-  const segments = getTimelineSegments(match);
+  const segments = getTimelineSegments(match, duration);
   const ticks = getTimelineTicks(segments);
   const events = match.events
     .map((event) => ({
       ...event,
-      start: parsePlaybackTime(event.startTime),
-      end: parsePlaybackTime(event.endTime),
+      matchStart: parsePlaybackTime(event.startTime),
+      matchEnd: parsePlaybackTime(event.endTime),
     }))
     .filter(
       (event) =>
-        event.start !== null && event.end !== null && event.end >= event.start,
+        event.matchStart !== null &&
+        event.matchEnd !== null &&
+        event.matchEnd >= event.matchStart,
     );
+  const matchDuration = Math.max(
+    ...segments.map((segment) => segment.matchEnd),
+    0,
+  );
+  const matchTimeToMediaTime = (matchTime) =>
+    matchDuration > 0 && duration > 0
+      ? (matchTime / matchDuration) * duration
+      : 0;
+
+  const popups = (match.popups ?? [])
+    .map((popup, index) => {
+      const start = parsePlaybackTime(popup.timeStart);
+      const end = parsePlaybackTime(popup.timeEnd);
+      return start === null || end === null || end <= start
+        ? null
+        : {
+            ...popup,
+            id: `${index}-${popup.timeStart}-${popup.position}`,
+            mediaStart: matchTimeToMediaTime(start),
+            mediaEnd: matchTimeToMediaTime(end),
+          };
+    })
+    .filter(Boolean);
 
   const seek = (value) => {
     const time = Math.min(Math.max(Number(value), 0), Math.max(duration, 0));
@@ -141,6 +198,13 @@ export default function GameStatsSlider({
         </div>
       </header>
 
+      <MomentPopups
+        popups={popups}
+        currentTime={currentTime}
+        playbackMode={playbackMode}
+        getStandScreenPoint={getStandScreenPoint}
+      />
+
       <div className="audio-controls">
         <button
           className="audio-player__button"
@@ -148,10 +212,10 @@ export default function GameStatsSlider({
           onClick={onTogglePlayback}
           disabled={duration <= 0}
           aria-label={
-            playbackMode === "all" ? "Pausa alla ljud" : "Spela alla ljud"
+            playbackMode !== "paused" ? "Pausa ljud" : "Spela ljud"
           }
         >
-          {playbackMode === "all" ? (
+          {playbackMode !== "paused" ? (
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M8 5h3v14H8zM15 5h3v14h-3z" />
             </svg>
@@ -239,8 +303,10 @@ export default function GameStatsSlider({
                   ))}
                 </div>
                 {events.map((event, index) => {
-                  const startPosition = getTimePosition(event.start, duration);
-                  const endPosition = getTimePosition(event.end, duration);
+                  const mediaStart = matchTimeToMediaTime(event.matchStart);
+                  const mediaEnd = matchTimeToMediaTime(event.matchEnd);
+                  const startPosition = getTimePosition(mediaStart, duration);
+                  const endPosition = getTimePosition(mediaEnd, duration);
                   return (
                     <span
                       key={`${event.startTime}-${event.endTime}-${event.label}`}
@@ -264,7 +330,7 @@ export default function GameStatsSlider({
                         }
                         onClick={(clickEvent) => {
                           clickEvent.stopPropagation();
-                          seekToTimelinePosition(event.start);
+                          seekToTimelinePosition(mediaStart);
                         }}
                       >
                         <span className="audio-timeline__event-label">

@@ -9,6 +9,7 @@ import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
 import Navigation from "../components/navigation";
 import GameStatsSlider from "../components/gameStatsSlider";
+import MarkerTuner from "../components/markerTuner";
 
 const ARENAS = {
   ullevi,
@@ -32,9 +33,50 @@ export default function StadiumMap() {
   });
   const audioControlsRef = useRef(null);
   const playbackActionRef = useRef(0);
+  const [selectedMarkerSide, setSelectedMarkerSide] = useState("north");
+  const [markerSettings, setMarkerSettings] = useState(() =>
+    Object.fromEntries(
+      Object.entries(ARENAS).map(([arenaKey, arena]) => [
+        arenaKey,
+        Object.fromEntries(
+          Object.entries(arena.stands)
+            .filter(([, stand]) => stand.marker)
+            .map(([side, stand]) => [
+              side,
+              {
+                insetMeters: stand.markerInsetMeters ?? 8,
+                widthMeters: stand.markerWidthMeters ?? 4,
+                heightRangeMeters: stand.markerHeightRangeMeters ?? [4, 12],
+              },
+            ]),
+        ),
+      ]),
+    ),
+  );
 
   const activeArena = ARENAS[activeArenaKey];
+  const markerSides = Object.keys(markerSettings[activeArenaKey]);
+  const activeMarkerSettings =
+    markerSettings[activeArenaKey][selectedMarkerSide];
   const mapPanning = mapBoxControls(mapRef);
+
+  const handleMarkerSettingsChange = (changes) => {
+    const updatedSettings = {
+      ...activeMarkerSettings,
+      ...changes,
+    };
+    setMarkerSettings((previous) => ({
+      ...previous,
+      [activeArenaKey]: {
+        ...previous[activeArenaKey],
+        [selectedMarkerSide]: updatedSettings,
+      },
+    }));
+    audioControlsRef.current?.updateMarkerSettings(
+      selectedMarkerSide,
+      updatedSettings,
+    );
+  };
 
   const handleAudioStateChange = useCallback(
     (duration, currentTime) => {
@@ -76,7 +118,7 @@ export default function StadiumMap() {
     const controls = audioControlsRef.current;
     if (!controls) return;
 
-    if (playback.mode === "all") {
+    if (playback.mode !== "paused") {
       playbackActionRef.current += 1;
       controls.pauseAll();
       setPlayback((previous) => ({
@@ -152,6 +194,9 @@ export default function StadiumMap() {
         match={activeArena.match}
         onSeek={handleSeek}
         onTogglePlayback={handleTogglePlayback}
+        getStandScreenPoint={(side) =>
+          audioControlsRef.current?.getStandScreenPoint(side) ?? null
+        }
       />
       {/* Filmisk övergångs-overlay */}
       <div
@@ -213,6 +258,15 @@ export default function StadiumMap() {
         activeArena={activeArenaKey}
         onSelectArena={handleSelectArena}
       />
+      {import.meta.env.DEV && (
+        <MarkerTuner
+          sides={markerSides}
+          selectedSide={selectedMarkerSide}
+          settings={activeMarkerSettings}
+          onSelectSide={setSelectedMarkerSide}
+          onChange={handleMarkerSettingsChange}
+        />
+      )}
 
       <div
         style={{ width: "100%", height: "100vh", touchAction: "none" }}
@@ -242,6 +296,7 @@ export default function StadiumMap() {
           }}
           style={{ width: "100%", height: "100vh" }}
           mapStyle={apiUrl1}
+          projection={{ name: "mercator" }}
           maxPitch={85}
           terrain={{
             source: "mapbox-dem",
@@ -285,9 +340,8 @@ export default function StadiumMap() {
             }}
           />
           <RenderObject
-            spots={activeArena.microphones}
-            boundaryMarginMeters={activeArena.particleBoundaryMarginMeters}
-            soundDirectory={activeArenaKey === "ullevi" ? "ullevi" : undefined}
+            stands={activeArena.stands}
+            markerSettings={markerSettings[activeArenaKey]}
             onAudioStateChange={handleAudioStateChange}
             onPlaybackModeChange={handlePlaybackModeChange}
             onPlaybackEnded={handlePlaybackEnded}

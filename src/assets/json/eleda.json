@@ -82,6 +82,16 @@
         "score": 2
       }
     ],
+    "popups": [
+      {"text": "Mål!!", "position": "north", "timeStart": "10:00", "timeEnd": "12:00"},
+      {"text": "Heja Malmö!", "position": "south", "timeStart": "16:00", "timeEnd": "18:00"},
+      {"text": "Stort tryck!", "position": "south", "timeStart": "27:00", "timeEnd": "29:00"},
+      {"text": "Straff!", "position": "north", "timeStart": "40:00", "timeEnd": "42:00"},
+      {"text": "Halvtidsvisselpipa", "position": "north", "timeStart": "45:00", "timeEnd": "47:00"},
+      {"text": "Nära mål!", "position": "south", "timeStart": "69:00", "timeEnd": "71:00"},
+      {"text": "Vilken räddning!", "position": "north", "timeStart": "77:00", "timeEnd": "79:00"},
+      {"text": "Slutspurt!", "position": "north", "timeStart": "87:00", "timeEnd": "89:00"}
+    ],
     "events": [
       {
         "startTime": "08:00",
@@ -110,40 +120,138 @@
       }
     ]
   },
-  "particleBoundaryMarginMeters": 8,
-  "microphones": {
-    "007": {
-      "id": "007",
-      "audioUrl": "sound/soundEffects.mp3",
-      "longitude": 12.988442507381173,
-      "latitude": 55.58364269564674,
-      "altitude": 5,
-      "color": "#e63146"
+  "stands": {
+    "west": {
+      "lengthMeters": 110,
+      "depthMeters": 24,
+      "heightRangeMeters": [
+        24,
+        34
+      ],
+      "emitterSpacingMeters": 4,
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#ff4444",
+      "footprint": [
+        [
+          12.986921272,
+          55.584160073
+        ],
+        [
+          12.987302721,
+          55.584160073
+        ],
+        [
+          12.987302721,
+          55.583171927
+        ],
+        [
+          12.986921272,
+          55.583171927
+        ]
+      ]
     },
-    "010": {
-      "id": "010",
-      "audioUrl": "sound/soundEffects.mp3",
-      "longitude": 12.987265288285208,
-      "latitude": 55.58368160400531,
-      "altitude": 5,
-      "color": "#4ea1de"
+    "north": {
+      "lengthMeters": 70,
+      "depthMeters": 24,
+      "heightRangeMeters": [
+        24,
+        34
+      ],
+      "emitterSpacingMeters": 4,
+      "marker": true,
+      "markerInsetMeters": 5,
+      "markerWidthMeters": 8.5,
+      "markerHeightRangeMeters": [
+        1,
+        15.5
+      ],
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#5bb8f0",
+      "colors": ["#5bb8f0", "#ffffff"],
+      "footprint": [
+        [
+          12.987584118,
+          55.584249222
+        ],
+        [
+          12.988412818,
+          55.584096322
+        ],
+        [
+          12.988530473,
+          55.584302789
+        ],
+        [
+          12.987701773,
+          55.584455689
+        ]
+      ]
     },
-    "015": {
-      "id": "015",
-      "audioUrl": "sound/soundEffects.mp3",
-      "longitude": 12.987577076895018,
-      "latitude": 55.58317648688251,
-      "altitude": 5,
-      "color": "#80ed09"
+    "east": {
+      "lengthMeters": 110,
+      "depthMeters": 24,
+      "heightRangeMeters": [
+        24,
+        34
+      ],
+      "emitterSpacingMeters": 4,
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#44ff44",
+      "footprint": [
+        [
+          12.988415279,
+          55.584160073
+        ],
+        [
+          12.988796728,
+          55.584160073
+        ],
+        [
+          12.988796728,
+          55.583171927
+        ],
+        [
+          12.988415279,
+          55.583171927
+        ]
+      ]
     },
-    "018": {
-      "id": "018",
-      "audioUrl": "sound/soundEffects.mp3",
-      "longitude": 12.988225845885669,
-      "latitude": 55.5840690753541,
-      "altitude": 5,
-      "color": "#ffd169"
+    "south": {
+      "lengthMeters": 70,
+      "depthMeters": 24,
+      "heightRangeMeters": [
+        24,
+        34
+      ],
+      "emitterSpacingMeters": 4,
+      "marker": true,
+      "markerInsetMeters": 0.5,
+      "markerWidthMeters": 8.5,
+      "markerHeightRangeMeters": [
+        4,
+        18.5
+      ],
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#00a651",
+      "colors": ["#00a651", "#ffffff"],
+      "footprint": [
+        [
+          12.986958288,
+          55.583204059
+        ],
+        [
+          12.987775688,
+          55.583046859
+        ],
+        [
+          12.987653554,
+          55.582841237
+        ],
+        [
+          12.986836154,
+          55.582998437
+        ]
+      ]
     }
-  },
-  "gameEvents": {}
+  }
 }

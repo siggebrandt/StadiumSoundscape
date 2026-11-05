@@ -82,6 +82,16 @@
         "score": 1
       }
     ],
+    "popups": [
+      {"text": "Mål!!", "position": "north", "timeStart": "10:00", "timeEnd": "12:00"},
+      {"text": "Heja GAIS!", "position": "south", "timeStart": "18:30", "timeEnd": "20:00"},
+      {"text": "Stort tryck!", "position": "south", "timeStart": "27:00", "timeEnd": "29:00"},
+      {"text": "Utvisning!", "position": "north", "timeStart": "36:00", "timeEnd": "38:00"},
+      {"text": "Halvtidsvisselpipa", "position": "north", "timeStart": "45:00", "timeEnd": "47:00"},
+      {"text": "Nära mål!", "position": "south", "timeStart": "69:00", "timeEnd": "71:00"},
+      {"text": "Vilken räddning!", "position": "north", "timeStart": "78:00", "timeEnd": "80:00"},
+      {"text": "Slutspurt!", "position": "north", "timeStart": "87:00", "timeEnd": "89:00"}
+    ],
     "events": [
       {
         "startTime": "10:00",
@@ -110,87 +120,72 @@
       }
     ]
   },
-  "particleBoundaryMarginMeters": 8,
-  "microphones": {
-    "007": {
-      "id": "007",
-      "audioUrl": "sound/ullevi/007.mp3",
-      "longitude": 11.97959214596796,
-      "latitude": 57.70631167357664,
-      "altitude": 5,
-      "color": "#e63946"
+  "stands": {
+    "west": {
+      "lengthMeters": 110,
+      "depthMeters": 24,
+      "heightRangeMeters": [24, 34],
+      "emitterSpacingMeters": 4,
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#ff4444",
+      "footprint": [
+        [11.97908094, 57.706735846],
+        [11.97948448, 57.706735846],
+        [11.97948448, 57.705747699],
+        [11.97908094, 57.705747699]
+      ]
     },
-    "010": {
-      "id": "010",
-      "audioUrl": "sound/ullevi/010.mp3",
-      "longitude": 11.980266083740867,
-      "latitude": 57.705760867556926,
-      "altitude": 5,
-      "color": "#4ea8de"
+    "north": {
+      "lengthMeters": 70,
+      "depthMeters": 24,
+      "heightRangeMeters": [24, 34],
+      "emitterSpacingMeters": 4,
+      "marker": true,
+      "markerInsetMeters": 5,
+      "markerWidthMeters": 8.5,
+      "markerHeightRangeMeters": [1, 15.5],
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#0057b8",
+      "colors": ["#0057b8", "#ffffff"],
+      "footprint": [
+        [11.97948448, 57.706928984],
+        [11.980661473, 57.706928984],
+        [11.980661473, 57.706713388],
+        [11.97948448, 57.706713388]
+      ]
     },
-    "014": {
-      "id": "014",
-      "audioUrl": "sound/ullevi/014.mp3",
-      "longitude": 11.980741257876506,
-      "latitude": 57.70646431305478,
-      "altitude": 5,
-      "color": "#80ed99"
+    "east": {
+      "lengthMeters": 110,
+      "depthMeters": 24,
+      "heightRangeMeters": [24, 34],
+      "emitterSpacingMeters": 4,
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#44ff44",
+      "footprint": [
+        [11.980661473, 57.706735846],
+        [11.981065014, 57.706735846],
+        [11.981065014, 57.705747699],
+        [11.980661473, 57.705747699]
+      ]
     },
-    "018": {
-      "id": "018",
-      "audioUrl": "sound/ullevi/018.mp3",
-      "longitude": 11.979948853707825,
-      "latitude": 57.70673011007179,
-      "altitude": 5,
-      "color": "#ffd166"
+    "south": {
+      "lengthMeters": 70,
+      "depthMeters": 24,
+      "heightRangeMeters": [24, 34],
+      "emitterSpacingMeters": 4,
+      "marker": true,
+      "markerInsetMeters": 0.5,
+      "markerWidthMeters": 8.5,
+      "markerHeightRangeMeters": [4, 18.5],
+      "audioUrl": "/sound/soundEffects.mp3",
+      "color": "#00923f",
+      "colors": ["#00923f", "#111111"],
+      "footprint": [
+        [11.97948448, 57.705770157],
+        [11.980661473, 57.705770157],
+        [11.980661473, 57.705554561],
+        [11.97948448, 57.705554561]
+      ]
     }
-  },
-  "gameEvents": {
-    "1": {
-      "name": "KO",
-      "soundFiles": {
-        "007": "",
-        "010": "",
-        "014": "",
-        "018": ""
-      }
-    },
-    "2": {
-      "name": "FOUL MADE",
-      "soundFiles": {
-        "007": "",
-        "010": "",
-        "014": "",
-        "018": ""
-      }
-    },
-    "3": {
-      "name": "GOAL",
-      "soundFiles": {
-        "007": "",
-        "010": "",
-        "014": "",
-        "018": ""
-      }
-    },
-    "4": {
-      "name": "chants",
-      "soundFiles": {
-        "007": "",
-        "010": "",
-        "014": "",
-        "018": ""
-      }
-    },
-    "5": {
-      "name": "sub(no.9)",
-      "soundFiles": {
-        "007": "",
-        "010": "",
-        "014": "",
-        "018": ""
-      }
-    }
-  },
-  "": ""
+  }
 }
