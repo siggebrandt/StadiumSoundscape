@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MomentPopups from "./momentPopups";
+import Waveform from "./waveform";
 import {
+  assignLabelLanes,
+  spreadPositions,
   formatMatchMinute,
   getMatchScores,
   getMinuteTicks,
@@ -9,6 +12,8 @@ import {
   parsePlaybackTime,
 } from "./matchTimeline";
 import "./gameStatsSlider.css";
+
+const POST_MATCH_SECONDS = 15;
 
 function getTimePosition(time, duration, start = 0) {
   if (duration <= start) return 0;
@@ -57,10 +62,11 @@ function IncidentIcon({ type }) {
 
 export default function GameStatsSlider({
   currentTime,
-  duration,
+  duration: audioDuration,
   playbackMode,
   match,
   listeningMode,
+  waveform,
   ambienceStart,
   matchStart,
   hasPlaybackAudio,
@@ -70,13 +76,29 @@ export default function GameStatsSlider({
 }) {
   const [draftTime, setDraftTime] = useState(currentTime);
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [timelinePx, setTimelinePx] = useState(640);
+  const scaleRef = useRef(null);
+  useEffect(() => {
+    const el = scaleRef.current;
+    if (!el) return undefined;
+    const update = () => setTimelinePx(el.clientWidth || 640);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
+  const matchSegments = getTimelineSegments(match);
+  const fullTimeStart = matchSegments.find((segment) => segment.type === "full-time")?.start;
+  const duration = listeningMode === "match" && fullTimeStart != null
+    ? Math.min(audioDuration, fullTimeStart + POST_MATCH_SECONDS)
+    : audioDuration;
   const timelineStart = listeningMode === "match" ? matchStart : 0;
   const displayTime = Math.min(
     Math.max(isScrubbing ? draftTime : currentTime, timelineStart),
     Math.max(duration, timelineStart),
   );
   const progress = getTimePosition(displayTime, duration, timelineStart);
-  const segments = getTimelineSegments(match);
+  const segments = matchSegments;
   const ticks = duration > 0 ? getTimelineTicks(segments) : [];
   const minuteTicks = duration > 0 ? getMinuteTicks(segments) : [];
   const events = match.events
@@ -113,6 +135,19 @@ export default function GameStatsSlider({
     }
   }, [match]);
 
+  const TIMELINE_PX = timelinePx;
+  const eventLanes = assignLabelLanes(
+    events.map((event) => {
+      const center = (getTimePosition(event.mediaStart, duration, timelineStart) / 100) * TIMELINE_PX;
+      const half = ((event.shortLabel ?? event.label).length * 6 + 8) / 2;
+      return { left: center - half, right: center + half };
+    }),
+    3,
+  );
+  const incidentOffsets = spreadPositions(
+    incidents.map((incident) => (getTimePosition(incident.mediaTime, duration, timelineStart) / 100) * TIMELINE_PX),
+    20,
+  );
   const scores = getMatchScores(match.teams, incidents, displayTime);
 
   const popups = (match.popups ?? [])
@@ -159,8 +194,8 @@ export default function GameStatsSlider({
             type="button"
             onClick={onTogglePlayback}
             disabled={!canTogglePlayback || !available}
-            title={!hasPlaybackAudio && playbackMode === "paused" ? "Lägg till en ljudfil för play-knappen" : undefined}
-            aria-label={playbackMode !== "paused" ? "Pausa ljud" : "Spela ljud"}
+            title={!hasPlaybackAudio && playbackMode === "paused" ? "Add an audio file for the play button" : undefined}
+            aria-label={playbackMode !== "paused" ? "Pause audio" : "Play audio"}
           >
             {playbackMode !== "paused" ? (
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -172,23 +207,30 @@ export default function GameStatsSlider({
               </svg>
             )}
           </button>
-          <section className="audio-player audio-player--ambience" aria-label="Ambience-ljud">
+          <section className="audio-player audio-player--ambience" aria-label="Ambience audio">
             <div className="audio-player__ambience-heading">
               <span>Ambience</span>
               <span>
                 {available
                   ? `${formatAudioTime(ambienceTime)} / ${formatAudioTime(ambienceDuration)}`
-                  : "Ambience-ljud inte tillgängligt"}
+                  : "Ambience audio unavailable"}
               </span>
             </div>
             <div className="audio-timeline audio-timeline--ambience">
               <div className="audio-timeline__scale">
+                <Waveform
+                  values={waveform?.values}
+                  start={ambienceStart}
+                  end={ambienceStart + ambienceDuration}
+                  progress={getTimePosition(ambienceTime, ambienceDuration)}
+                  bars={90}
+                />
                 <div
                   className="audio-timeline__track"
                   style={{ "--timeline-progress": `${getTimePosition(ambienceTime, ambienceDuration)}%` }}
                 />
                 <input
-                  aria-label="Hoppa i ambience-ljudet"
+                  aria-label="Seek ambience audio"
                   type="range"
                   min={0}
                   max={ambienceDuration}
@@ -252,9 +294,9 @@ export default function GameStatsSlider({
           type="button"
           onClick={onTogglePlayback}
           disabled={!canTogglePlayback}
-          title={!hasPlaybackAudio && playbackMode === "paused" ? "Lägg till en ljudfil för play-knappen" : undefined}
+          title={!hasPlaybackAudio && playbackMode === "paused" ? "Add an audio file for the play button" : undefined}
           aria-label={
-            playbackMode !== "paused" ? "Pausa ljud" : "Spela ljud"
+            playbackMode !== "paused" ? "Pause audio" : "Play audio"
           }
         >
           {playbackMode !== "paused" ? (
@@ -271,12 +313,19 @@ export default function GameStatsSlider({
         <section className="audio-player" aria-label="Ljuduppspelning">
           {!hasPlaybackAudio && (
             <span className="audio-player__missing-source" role="status">
-              Ljudfil för play-knappen saknas
+              Audio file for the play button is missing
             </span>
           )}
           <div className="audio-player__timeline">
             <div className="audio-timeline">
-              <div className="audio-timeline__scale">
+              <div className="audio-timeline__scale" ref={scaleRef}>
+                <Waveform
+                  values={waveform?.values}
+                  start={timelineStart}
+                  end={duration}
+                  progress={progress}
+                  bars={Math.max(40, Math.floor(timelinePx / 4))}
+                />
                 <div
                   className="audio-timeline__track"
                   style={{ "--timeline-progress": `${progress}%` }}
@@ -363,7 +412,8 @@ export default function GameStatsSlider({
                     </span>
                   ))}
                 </div>
-                {events.map((event) => {
+                {events.map((event, eventIndex) => {
+                  const lane = eventLanes[eventIndex];
                   const mediaStart = event.mediaStart;
                   const mediaEnd = event.mediaEnd;
                   const startPosition = getTimePosition(mediaStart, duration, timelineStart);
@@ -381,11 +431,11 @@ export default function GameStatsSlider({
                         }}
                       />
                       <button
-                        className={`audio-timeline__event`}
+                        className={`audio-timeline__event audio-timeline__event--lane-${Math.max(lane, 0)}${lane === -1 ? " audio-timeline__event--compact" : ""}`}
                         type="button"
                         style={{ left: `${startPosition}%` }}
                         title={`${event.startTime}–${event.endTime} · ${event.label}`}
-                        aria-label={`Hoppa till ${event.label}, ${event.startTime} till ${event.endTime}`}
+                        aria-label={`Jump to ${event.label}, ${event.startTime} to ${event.endTime}`}
                         onPointerDown={(pointerEvent) =>
                           pointerEvent.stopPropagation()
                         }
@@ -395,7 +445,7 @@ export default function GameStatsSlider({
                         }}
                       >
                         <span className="audio-timeline__event-label">
-                          {event.label}
+                          {event.shortLabel ?? event.label}
                         </span>
                         <span className="audio-timeline__event-stem" />
                         <span className="audio-timeline__event-dot" />
@@ -403,13 +453,13 @@ export default function GameStatsSlider({
                     </span>
                   );
                 })}
-                {incidents.map((incident) => (
+                {incidents.map((incident, incidentIndex) => (
                   <button
                     key={`${incident.type}-${incident.time}`}
                     className={`audio-timeline__incident audio-timeline__incident--${incident.type}`}
                     type="button"
                     style={{
-                      left: `${getTimePosition(incident.mediaTime, duration, timelineStart)}%`,
+                      left: `${(incidentOffsets[incidentIndex] / TIMELINE_PX) * 100}%`,
                     }}
                     title={`${formatMatchMinute(incident.mediaTime, segments)} · ${incident.label}`}
                     aria-label={`${incident.label}, ${formatMatchMinute(incident.mediaTime, segments)}`}
@@ -425,7 +475,7 @@ export default function GameStatsSlider({
                   </button>
                 ))}
                 <input
-                  aria-label="Hoppa i ljud och match"
+                  aria-label="Seek audio and match"
                   type="range"
                   min={Math.min(matchStart, Math.max(duration, 0))}
                   max={Math.max(duration, 0)}

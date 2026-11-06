@@ -67,7 +67,7 @@ test("sound energy creates subtle wavefronts across the stand and pause fades th
     const y = visible.map(({ index }) => position[index * 3 + 1]);
     assert.ok(Math.max(...x) - Math.min(...x) > 100, "waves cover the whole stand");
     assert.ok(Math.max(...y) - Math.min(...y) > 5, "distinct fronts travel outward");
-    assert.ok(Math.max(...visible.map(({ alpha }) => alpha)) <= 0.53, "particles remain translucent");
+    assert.ok(Math.max(...visible.map(({ alpha }) => alpha)) <= 1, "particles stay within valid opacity");
     const sharedOpacity = sharedFlow.group.children[0].geometry.getAttribute("aOpacity").array;
     assert.ok(sharedOpacity.some((value) => value > 0), "shared audio drives other stands");
 

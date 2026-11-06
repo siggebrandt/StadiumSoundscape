@@ -113,3 +113,38 @@ export function getMinuteTicks(segments) {
     });
   return ticks;
 }
+
+// Greedy lane assignment so labels never overlap; -1 means "no room, hide label".
+export function assignLabelLanes(items, laneCount, gap = 6) {
+  const lanes = new Array(items.length).fill(-1);
+  const laneEnds = new Array(laneCount).fill(-Infinity);
+  items
+    .map((item, index) => ({ ...item, index }))
+    .sort((a, b) => a.left - b.left)
+    .forEach(({ left, right, index }) => {
+      const lane = laneEnds.findIndex((end) => left >= end + gap);
+      if (lane === -1) return;
+      laneEnds[lane] = right;
+      lanes[index] = lane;
+    });
+  return lanes;
+}
+
+// Nudges markers sideways so they keep at least minGap between their centres.
+export function spreadPositions(positions, minGap) {
+  const order = positions.map((position, index) => ({ position, index }))
+    .sort((a, b) => a.position - b.position);
+  const result = order.map(({ position }) => position);
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 1; i < result.length; i++) {
+      const overlap = minGap - (result[i] - result[i - 1]);
+      if (overlap > 0) {
+        result[i - 1] -= overlap / 2;
+        result[i] += overlap / 2;
+      }
+    }
+  }
+  const output = new Array(positions.length);
+  order.forEach(({ index }, i) => { output[index] = result[i]; });
+  return output;
+}

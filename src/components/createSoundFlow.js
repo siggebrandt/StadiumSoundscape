@@ -1,12 +1,23 @@
 import * as THREE from "three";
-import createCrowd from "./createCrowd";
+import createCrowd from "./createCrowd.js";
+import { BAND_COUNT, createAudioFeatureExtractor } from "./audioFeatures.js";
 
-const PARTICLE_COUNT = 1200;
+const PARTICLE_COUNT = 2400;
 const DEFAULT_AUDIO_VOLUME = 0.35;
 const FLOW_WIDTH = 3.5;
 const SOUND_SPEED = 16;
 const WAVE_LIFETIME = 2.5;
 const STRIPE_COUNT = 10;
+const EMPTY_FEATURES = {
+  silent: true,
+  absolute: 0,
+  loudness: 0,
+  centroid: 0.5,
+  flatness: 0,
+  onset: false,
+  onsetStrength: 0,
+  bands: new Float32Array(BAND_COUNT),
+};
 const DEFAULT_EMITTER = { x: 0, y: 0 };
 
 function createParticleGeometry(baseColor, emitters) {
@@ -30,6 +41,11 @@ function createParticleGeometry(baseColor, emitters) {
   const lateralOffsets = new Float32Array(PARTICLE_COUNT);
   const forwardOffsets = new Float32Array(PARTICLE_COUNT);
   const intensityOffsets = new Float32Array(PARTICLE_COUNT);
+  const speeds = new Float32Array(PARTICLE_COUNT);
+  const wobblePhases = new Float32Array(PARTICLE_COUNT);
+  const wobbleRates = new Float32Array(PARTICLE_COUNT);
+  const bandMix = new Float32Array(PARTICLE_COUNT);
+  const turbulence = new Float32Array(PARTICLE_COUNT);
   const sourcePositions = emitters.length ? emitters : [DEFAULT_EMITTER];
 
   for (let i = 0; i < PARTICLE_COUNT; i++) {
@@ -78,6 +94,11 @@ function createParticleGeometry(baseColor, emitters) {
     lateralOffsets,
     forwardOffsets,
     intensityOffsets,
+    speeds,
+    wobblePhases,
+    wobbleRates,
+    bandMix,
+    turbulence,
     sourcePositions,
     baseColor,
   };
@@ -94,6 +115,7 @@ export default function createSoundFlow({
   audioUrl = "sound/soundEffects.mp3",
   onAudioStateChange = () => {},
   onEnded = () => {},
+  makeupGain = 1,
 }) {
   const group = new THREE.Group();
   const standbyColor = new THREE.Color(color);
@@ -126,14 +148,14 @@ export default function createSoundFlow({
           float radius = length(gl_PointCoord - vec2(0.5));
           float softEdge = 1.0 - smoothstep(0.18, 0.5, radius);
           float brightCore = 1.0 - smoothstep(0.0, 0.22, radius);
-          float alpha = clamp(vOpacity * max(softEdge * 0.9, brightCore), 0.0, 0.96);
+          float alpha = clamp(vOpacity * max(softEdge, brightCore), 0.0, 1.0);
           gl_FragColor = vec4(vColor, alpha);
           #include <colorspace_fragment>
         }
       `,
       transparent: true,
       blending: THREE.NormalBlending,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       toneMapped: false,
     }),
@@ -243,11 +265,11 @@ export default function createSoundFlow({
   let playRequest = 0;
   let pendingSeek = null;
   let emissionEnabled = false;
-  let currentVolume = 0;
-  let currentMidEnergy = 0;
-  let currentBassEnergy = 0;
   let lastUpdateTime = null;
   let timeSinceWave = 1;
+  let extractor = null;
+  let extractorSource = null;
+  let features = EMPTY_FEATURES;
   let nextParticleIndex = 0;
 
   function initializeAudio() {
@@ -283,14 +305,29 @@ export default function createSoundFlow({
 
     audioContext = new AudioContextClass();
     analyser = audioContext.createAnalyser();
-    analyser.fftSize = 512;
+    analyser.fftSize = 2048;
     analyser.minDecibels = -75;
     analyser.maxDecibels = -18;
-    analyser.smoothingTimeConstant = 0.65;
+    analyser.smoothingTimeConstant = 0.5;
     frequencyData = new Uint8Array(analyser.frequencyBinCount);
     const source = audioContext.createMediaElementSource(sound);
     source.connect(analyser);
-    analyser.connect(audioContext.destination);
+    if (makeupGain > 1) {
+      // Lifts quiet passages (ambience) while the compressor keeps loud peaks from clipping.
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = makeupGain;
+      const compressor = audioContext.createDynamicsCompressor();
+      compressor.threshold.value = -26;
+      compressor.knee.value = 20;
+      compressor.ratio.value = 6;
+      compressor.attack.value = 0.01;
+      compressor.release.value = 0.25;
+      analyser.connect(gainNode);
+      gainNode.connect(compressor);
+      compressor.connect(audioContext.destination);
+    } else {
+      analyser.connect(audioContext.destination);
+    }
   }
 
   async function play() {
@@ -354,10 +391,12 @@ export default function createSoundFlow({
     if (audio) audio.volume = audioVolume;
   }
 
-  function emitParticle(index, source, energy) {
+  function emitParticle(index, source, energy, band, burst) {
+    const pitch = band / (BAND_COUNT - 1);
     flow.emitterX[index] = source.x;
     flow.emitterY[index] = source.y;
-    flow.emitterZ[index] = source.heightOffset;
+    flow.emitterZ[index] =
+      source.heightOffset + Math.random() ** 1.5 * (3 + Math.min(energy, 1) * 12) + pitch * 3 + features.centroid * 6;
     flow.directionX[index] = source.directionX;
     flow.directionY[index] = source.directionY;
     flow.normalX[index] = -source.directionY;
@@ -365,21 +404,31 @@ export default function createSoundFlow({
     flow.ages[index] = 0;
     flow.opacities[index] = 0;
     flow.colorIndex[index] = source.colorIndex ?? 0;
-    flow.lifetimes[index] = WAVE_LIFETIME;
+    flow.lifetimes[index] = WAVE_LIFETIME * (0.35 + Math.min(energy, 1) * 0.9 + Math.random() * 0.9) * (1.6 - pitch * 0.5);
     flow.birthEnergy[index] = energy;
-    flow.lateralOffsets[index] = (Math.random() - 0.5) * 2.4;
+    flow.lateralOffsets[index] = (Math.random() - 0.5) * (1.4 + Math.min(energy, 1) * 2.4);
     flow.forwardOffsets[index] = (Math.random() - 0.5) * 1.2;
     flow.intensityOffsets[index] = 0.65 + Math.random() * 0.35;
-    flow.baseSizes[index] = 4 + Math.random() * 1.5;
+    flow.baseSizes[index] = (6 + Math.random() * 3 + Math.min(energy, 1) * 4) * (1.2 - pitch * 0.5);
+    flow.speeds[index] = SOUND_SPEED * (0.8 + Math.random() * 0.7 + pitch * 0.4) * (0.85 + features.centroid * 0.5) * (1 + burst * 0.5);
+    flow.turbulence[index] = 0.5 + features.flatness * 2;
+    flow.wobblePhases[index] = Math.random() * Math.PI * 2;
+    flow.wobbleRates[index] = 1 + pitch * 2.5 + Math.random();
+    flow.bandMix[index] = pitch;
   }
 
-  function emitWave(energy) {
+  function emitWave(burst) {
     const sources = flow.sourcePositions;
-    const count = Math.min(sources.length * 2, Math.floor(PARTICLE_COUNT / 5));
-    for (let i = 0; i < count; i++) {
-      const source = sources[Math.floor(i * sources.length / count)];
-      emitParticle(nextParticleIndex, source, energy);
-      nextParticleIndex = (nextParticleIndex + 1) % PARTICLE_COUNT;
+    const gain = (0.35 + features.loudness * 2.2) * (1 + burst * 1.2);
+    for (let i = 0; i < sources.length; i++) {
+      const band = Math.min(BAND_COUNT - 1, Math.floor(i / sources.length * BAND_COUNT));
+      const level = Math.min(1, Math.max(features.bands[band], features.absolute * 0.3));
+      const spawn = (level * level * 3 + level * 0.6) * gain;
+      let amount = Math.floor(spawn) + (Math.random() < spawn % 1 ? 1 : 0);
+      while (amount-- > 0) {
+        emitParticle(nextParticleIndex, sources[i], Math.min(1, level + burst * 0.25), band, burst);
+        nextParticleIndex = (nextParticleIndex + 1) % PARTICLE_COUNT;
+      }
     }
   }
 
@@ -390,42 +439,17 @@ export default function createSoundFlow({
         : Math.max(0, timeSeconds - lastUpdateTime);
     lastUpdateTime = timeSeconds;
 
-    let midEnergy = 0;
-    let bassEnergy = 0;
-    let volume = 0;
     const activeAnalyser = sharedAnalysis?.analyser ?? analyser;
-    const activeFrequencyData = sharedAnalysis?.frequencyData ?? frequencyData;
-    if (activeAnalyser && activeFrequencyData) {
-      activeAnalyser.getByteFrequencyData(activeFrequencyData);
-      const bassBandEnd = Math.min(4, activeFrequencyData.length);
-      const lowBandEnd = Math.min(12, activeFrequencyData.length);
-      const midBandEnd = Math.min(36, activeFrequencyData.length);
-      let totalEnergy = 0;
-      for (let i = 0; i < activeFrequencyData.length; i++) {
-        totalEnergy += activeFrequencyData[i];
-      }
-      for (let i = 1; i < bassBandEnd; i++) {
-        bassEnergy += activeFrequencyData[i];
-      }
-      for (let i = lowBandEnd; i < midBandEnd; i++) {
-        midEnergy += activeFrequencyData[i];
-      }
-      volume = totalEnergy / (activeFrequencyData.length * 255);
-      bassEnergy /= Math.max(1, bassBandEnd - 1) * 255;
-      midEnergy /= Math.max(1, midBandEnd - lowBandEnd) * 255;
+    if (activeAnalyser && extractorSource !== activeAnalyser) {
+      extractor = createAudioFeatureExtractor(activeAnalyser);
+      extractorSource = activeAnalyser;
     }
-    const smoothing = 1 - (1 - 0.18) ** (deltaTime * 60);
-    const bassSmoothing = 1 - (1 - 0.22) ** (deltaTime * 60);
-    currentVolume = THREE.MathUtils.lerp(currentVolume, volume, smoothing);
-    currentBassEnergy = THREE.MathUtils.lerp(currentBassEnergy, bassEnergy, bassSmoothing);
-    currentMidEnergy = THREE.MathUtils.lerp(currentMidEnergy, midEnergy, smoothing);
+    features = extractor ? extractor.analyze(deltaTime) : EMPTY_FEATURES;
 
     const canEmit = Boolean(markerVertices) && (playing || emissionEnabled);
-    const energy = Math.max(currentVolume, currentMidEnergy * 0.8, currentBassEnergy * 0.55);
-    crowd?.update(timeSeconds, (playing || emissionEnabled) ? energy : 0);
-    const inputEnergy = Math.max(volume, midEnergy * 0.8, bassEnergy * 0.55);
+    const energy = Math.min(1, features.loudness * 0.55 + features.absolute * 0.55);
+    crowd?.update(timeSeconds, energy, playing || emissionEnabled);
     timeSinceWave += deltaTime;
-    const interval = THREE.MathUtils.lerp(1.05, 0.55, Math.min(energy * 2, 1));
     const positions = geometry.attributes.position.array;
     const colors = geometry.attributes.color.array;
     const opacities = flow.opacities;
@@ -434,7 +458,7 @@ export default function createSoundFlow({
       const index = i * 3;
       if (flow.ages[i] < 0) continue;
 
-      flow.ages[i] += deltaTime;
+      flow.ages[i] += canEmit && !features.silent ? deltaTime : deltaTime * 3;
       const progress = flow.ages[i] / flow.lifetimes[i];
       if (progress >= 1) {
         flow.ages[i] = -1;
@@ -448,14 +472,23 @@ export default function createSoundFlow({
         continue;
       }
 
-      const distance = SOUND_SPEED * flow.ages[i] + flow.forwardOffsets[i];
-      const width = flow.lateralOffsets[i] * (1 + progress * 0.7);
-      const archHeight = (2 + flow.birthEnergy[i] * 4) * Math.sin(progress * Math.PI);
+      const age = flow.ages[i];
+      const distance = flow.speeds[i] * age * (1 - 0.45 * progress) + flow.forwardOffsets[i];
+      const wobble = Math.sin(age * flow.wobbleRates[i] + flow.wobblePhases[i]);
+      const width =
+        flow.lateralOffsets[i] * (1 + progress * 0.7) +
+        wobble * (0.3 + flow.birthEnergy[i] * 0.8) * flow.turbulence[i] * progress +
+        Math.sin(progress * Math.PI * (0.8 + flow.bandMix[i] * 1.4) + flow.wobblePhases[i]) *
+          (2 + flow.birthEnergy[i] * 5) * Math.sin(progress * Math.PI);
+      const archHeight =
+        (1 + flow.birthEnergy[i] * 8) * Math.sin(progress * Math.PI) + progress * flow.bandMix[i] * 4 +
+        Math.cos(age * flow.wobbleRates[i] * 0.8 + flow.wobblePhases[i]) *
+          flow.birthEnergy[i] * 0.6 * progress;
       const fadeIn = Math.min(progress * 10, 1);
       const fadeOut = (1 - progress) ** 1.3;
       const intensity =
         flow.intensityOffsets[i] *
-        (0.22 + Math.min(flow.birthEnergy[i] * 0.65, 0.3)) *
+        (0.55 + Math.min(flow.birthEnergy[i] * 0.6, 0.4)) *
         fadeIn *
         fadeOut;
 
@@ -470,15 +503,21 @@ export default function createSoundFlow({
       positions[index + 2] = flow.emitterZ[i] + archHeight;
 
       const particleColor = teamColors[flow.colorIndex[i] % teamColors.length];
-      colors[index] = particleColor.r;
-      colors[index + 1] = particleColor.g;
-      colors[index + 2] = particleColor.b;
-      opacities[i] = intensity;
-      flow.sizes[i] = flow.baseSizes[i];
+      const shine = Math.min(1, flow.bandMix[i] * flow.birthEnergy[i] * 0.6 + features.centroid * 0.15);
+      colors[index] = particleColor.r + (1 - particleColor.r) * shine;
+      colors[index + 1] = particleColor.g + (1 - particleColor.g) * shine;
+      colors[index + 2] = particleColor.b + (1 - particleColor.b) * shine;
+      opacities[i] = Math.min(1, intensity * (0.5 + Math.min(energy * 2.5, 1)));
+      flow.sizes[i] = flow.baseSizes[i] * (0.75 + Math.min(energy * 1.5, 0.6));
     }
-    if (canEmit && inputEnergy > 0.025 && energy > 0.025 && timeSinceWave >= interval) {
-      emitWave(energy);
-      timeSinceWave = 0;
+    if (canEmit && !features.silent) {
+      if (features.onset) {
+        emitWave(features.onsetStrength);
+        timeSinceWave = 0;
+      } else if (timeSinceWave >= 0.3 - features.loudness * 0.15) {
+        emitWave(0);
+        timeSinceWave = 0;
+      }
     }
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;

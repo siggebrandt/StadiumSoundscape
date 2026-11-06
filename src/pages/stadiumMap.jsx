@@ -4,6 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import ullevi from "../assets/json/ullevi.json";
 import eleda from "../assets/json/eleda.json";
+import ulleviWaveform from "../assets/json/ullevi-waveform.json";
 
 import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
@@ -215,6 +216,7 @@ export default function StadiumMap() {
         playbackMode={playback.mode}
         match={activeArena.match}
         listeningMode={listeningMode}
+        waveform={activeArenaKey === "ullevi" ? ulleviWaveform : null}
         ambienceStart={ambienceStart}
         matchStart={matchStart}
         hasPlaybackAudio={Boolean(playbackAudioUrl)}

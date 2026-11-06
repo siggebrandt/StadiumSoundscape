@@ -13,7 +13,7 @@
     "timelineSegments": [
       {
         "id": "firstHalf",
-        "label": "Första halvlek",
+        "label": "First half",
         "type": "regular",
         "startTime": "00:00.000",
         "endTime": "01:12.267",
@@ -22,7 +22,7 @@
       },
       {
         "id": "firstHalfAddedTime",
-        "label": "Tilläggstid, första halvlek",
+        "label": "First-half added time",
         "type": "added-time",
         "startTime": "01:12.267",
         "endTime": "01:20.297",
@@ -31,14 +31,14 @@
       },
       {
         "id": "halftime",
-        "label": "Halvtid",
+        "label": "Half-time",
         "type": "halftime",
         "startTime": "01:20.297",
         "endTime": "01:21.903"
       },
       {
         "id": "secondHalf",
-        "label": "Andra halvlek",
+        "label": "Second half",
         "type": "regular",
         "startTime": "01:21.903",
         "endTime": "02:34.170",
@@ -47,7 +47,7 @@
       },
       {
         "id": "secondHalfAddedTime",
-        "label": "Tilläggstid, andra halvlek",
+        "label": "Second-half added time",
         "type": "added-time",
         "startTime": "02:34.170",
         "endTime": "02:42.200",
@@ -56,7 +56,7 @@
       },
       {
         "id": "fullTime",
-        "label": "Slut",
+        "label": "Full-time",
         "type": "full-time",
         "startTime": "02:42.200",
         "endTime": "02:42.200"
@@ -242,7 +242,12 @@
         "#a89a8f",
         "#c4b8ae"
       ],
-      "markerOpacity": 0.75
+      "markerOpacity": 0.75,
+      "crowdColors": [
+        "#00a651",
+        "#ffffff",
+        "#5bb8f0"
+      ]
     },
     "southWest": {
       "lengthMeters": 70,
@@ -364,7 +369,12 @@
         "#a89a8f",
         "#c4b8ae"
       ],
-      "markerOpacity": 0.75
+      "markerOpacity": 0.75,
+      "crowdColors": [
+        "#00a651",
+        "#ffffff",
+        "#5bb8f0"
+      ]
     },
     "south": {
       "lengthMeters": 70,
@@ -447,7 +457,12 @@
         ]
       ],
       "markerOpacity": 0.75,
-      "stripeWidthMeters": 8.8
+      "stripeWidthMeters": 8.8,
+      "crowdColors": [
+        "#00a651",
+        "#ffffff",
+        "#5bb8f0"
+      ]
     }
   }
 }

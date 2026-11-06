@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  assignLabelLanes,
+  spreadPositions,
   formatMatchMinute,
   getMatchStart,
   getMatchScores,
@@ -113,9 +115,19 @@ test("Ullevi timing and score follow the supplied recording", () => {
   assert.deepEqual(getMatchScores(match.teams, incidents, parsePlaybackTime("01:01:32")), { 8222: 0, 2556: 0 });
   assert.deepEqual(getMatchScores(match.teams, incidents, parsePlaybackTime("01:01:33")), { 8222: 1, 2556: 0 });
   assert.deepEqual(getMatchScores(match.teams, incidents, parsePlaybackTime("02:02:30")), { 8222: 1, 2556: 1 });
-  assert.deepEqual(getTimelineTicks(segments).map((tick) => tick.label), ["0'", "FT"]);
+  assert.deepEqual(getTimelineTicks(segments).map((tick) => tick.label), ["0'", "45'", "90'", "FT"]);
   const findEvent = (label) => match.events.find((event) => event.label === label);
-  assert.equal(findEvent("Byte, GAIS nr 9").endTime, "02:10:51");
-  assert.equal(findEvent("Mic 18 faller").startTime, "02:34:20");
-  assert.equal(findEvent("Mikrofoner slutar").startTime, "02:45:33");
+  assert.equal(findEvent("GAIS sub no. 9").endTime, "02:10:51");
+  assert.equal(findEvent("Mic 18 drops"), undefined);
+});
+
+test("label lanes avoid overlap and markers are spread apart", () => {
+  const lanes = assignLabelLanes(
+    [{ left: 0, right: 40 }, { left: 10, right: 50 }, { left: 20, right: 60 }],
+    2,
+  );
+  assert.deepEqual(lanes, [0, 1, -1]);
+  const spread = spreadPositions([100, 106, 300], 18);
+  assert.ok(spread[1] - spread[0] >= 18 - 1e-9);
+  assert.equal(spread[2], 300);
 });

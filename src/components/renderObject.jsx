@@ -295,6 +295,7 @@ function createLayer({
       if (playbackAudioUrl) {
         playbackFlow = createSoundFlow({
           audioUrl: playbackAudioUrl,
+          makeupGain: 4,
           onAudioStateChange: notifyAudioState,
           onEnded: () => {
             timelinePosition = playbackFlow.getCurrentTime();

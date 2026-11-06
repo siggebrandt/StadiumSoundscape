@@ -13,32 +13,50 @@
     "timelineSegments": [
       {
         "id": "firstHalf",
-        "label": "Första halvlek",
+        "label": "First half",
         "type": "regular",
         "startTime": "00:30:28",
-        "endTime": "01:20:41",
+        "endTime": "01:15:28",
         "clockStart": 0,
         "clockEnd": 45
       },
       {
+        "id": "firstHalfAddedTime",
+        "label": "First-half added time",
+        "type": "added-time",
+        "startTime": "01:15:28",
+        "endTime": "01:20:41",
+        "clockStart": 45,
+        "clockEnd": 50
+      },
+      {
         "id": "halftime",
-        "label": "Halvtid",
+        "label": "Half-time",
         "type": "halftime",
         "startTime": "01:20:41",
         "endTime": "01:35:58"
       },
       {
         "id": "secondHalf",
-        "label": "Andra halvlek",
+        "label": "Second half",
         "type": "regular",
         "startTime": "01:35:58",
-        "endTime": "02:24:32",
+        "endTime": "02:20:58",
         "clockStart": 45,
         "clockEnd": 90
       },
       {
+        "id": "secondHalfAddedTime",
+        "label": "Second-half added time",
+        "type": "added-time",
+        "startTime": "02:20:58",
+        "endTime": "02:24:32",
+        "clockStart": 90,
+        "clockEnd": 94
+      },
+      {
         "id": "fullTime",
-        "label": "Slut",
+        "label": "Full-time",
         "type": "full-time",
         "startTime": "02:24:32",
         "endTime": "02:24:32"
@@ -74,57 +92,44 @@
       {
         "startTime": "00:59:49",
         "endTime": "00:59:49",
-        "label": "Foul"
+        "label": "Foul",
+        "shortLabel": "Foul"
       },
       {
         "startTime": "00:59:53",
         "endTime": "00:59:53",
-        "label": "Straff bekräftad"
+        "label": "Penalty confirmed",
+        "shortLabel": "Pen"
       },
       {
         "startTime": "01:00:09",
         "endTime": "01:00:09",
-        "label": "GAIS-supporter, mic 10"
+        "label": "GAIS fan, mic 10",
+        "shortLabel": "GAIS fan"
       },
       {
         "startTime": "01:20:30",
         "endTime": "01:20:30",
-        "label": "Buhrop, mic 18"
+        "label": "Boos, mic 18",
+        "shortLabel": "Boos"
       },
       {
         "startTime": "02:02:15",
         "endTime": "02:02:15",
-        "label": "IFK-chans"
+        "label": "IFK chance",
+        "shortLabel": "IFK chance"
       },
       {
         "startTime": "02:10:11",
         "endTime": "02:10:51",
-        "label": "Byte, GAIS nr 9"
+        "label": "GAIS sub no. 9",
+        "shortLabel": "Sub"
       },
       {
         "startTime": "02:10:56",
         "endTime": "02:11:23",
-        "label": "GAIS-ramsa"
-      },
-      {
-        "startTime": "02:33:38",
-        "endTime": "02:45:33",
-        "label": "Publiken lämnar"
-      },
-      {
-        "startTime": "02:34:20",
-        "endTime": "02:34:20",
-        "label": "Mic 18 faller"
-      },
-      {
-        "startTime": "02:40:36",
-        "endTime": "02:40:36",
-        "label": "Mic 7 faller"
-      },
-      {
-        "startTime": "02:45:33",
-        "endTime": "02:45:33",
-        "label": "Mikrofoner slutar"
+        "label": "GAIS chant",
+        "shortLabel": "Chant"
       }
     ],
     "incidents": [
@@ -132,31 +137,31 @@
         "type": "goal",
         "time": "01:01:33",
         "teamId": "8222",
-        "label": "GAIS mål på straff"
+        "label": "GAIS penalty goal"
       },
       {
         "type": "yellow-card",
         "time": "01:08:21",
         "teamId": "2556",
-        "label": "Gult kort, IFK"
+        "label": "Yellow card, IFK"
       },
       {
         "type": "yellow-card",
         "time": "01:09:02",
         "teamId": "8222",
-        "label": "Gult kort, GAIS"
+        "label": "Yellow card, GAIS"
       },
       {
         "type": "goal",
         "time": "02:02:30",
         "teamId": "2556",
-        "label": "Mål, IFK"
+        "label": "IFK goal"
       },
       {
         "type": "substitution",
         "time": "02:10:11",
         "teamId": "8222",
-        "label": "Byte, GAIS nr 9"
+        "label": "GAIS sub no. 9"
       }
     ]
   },
@@ -204,7 +209,13 @@
         "#a89a8f",
         "#c4b8ae"
       ],
-      "markerOpacity": 0.75
+      "markerOpacity": 0.75,
+      "crowdColors": [
+        "#0057b8",
+        "#ffffff",
+        "#00923f",
+        "#111111"
+      ]
     },
     "north": {
       "lengthMeters": 70,
@@ -285,7 +296,13 @@
         "#a89a8f",
         "#c4b8ae"
       ],
-      "markerOpacity": 0.75
+      "markerOpacity": 0.75,
+      "crowdColors": [
+        "#0057b8",
+        "#ffffff",
+        "#00923f",
+        "#111111"
+      ]
     },
     "south": {
       "lengthMeters": 70,
