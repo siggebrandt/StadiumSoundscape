@@ -1,9 +1,11 @@
 import * as THREE from "three";
+import createCrowd from "./createCrowd";
 
 const PARTICLE_COUNT = 1200;
 const DEFAULT_AUDIO_VOLUME = 0.35;
 const FLOW_WIDTH = 3.5;
-const SOUND_SPEED = 22;
+const SOUND_SPEED = 16;
+const WAVE_LIFETIME = 2.5;
 const STRIPE_COUNT = 10;
 const DEFAULT_EMITTER = { x: 0, y: 0 };
 
@@ -25,8 +27,8 @@ function createParticleGeometry(baseColor, emitters) {
   const colorIndex = new Uint8Array(PARTICLE_COUNT);
   const lifetimes = new Float32Array(PARTICLE_COUNT);
   const birthEnergy = new Float32Array(PARTICLE_COUNT);
-  const birthRadius = new Float32Array(PARTICLE_COUNT);
-  const vortexAngles = new Float32Array(PARTICLE_COUNT);
+  const lateralOffsets = new Float32Array(PARTICLE_COUNT);
+  const forwardOffsets = new Float32Array(PARTICLE_COUNT);
   const intensityOffsets = new Float32Array(PARTICLE_COUNT);
   const sourcePositions = emitters.length ? emitters : [DEFAULT_EMITTER];
 
@@ -73,8 +75,8 @@ function createParticleGeometry(baseColor, emitters) {
     colorIndex,
     lifetimes,
     birthEnergy,
-    birthRadius,
-    vortexAngles,
+    lateralOffsets,
+    forwardOffsets,
     intensityOffsets,
     sourcePositions,
     baseColor,
@@ -84,8 +86,11 @@ function createParticleGeometry(baseColor, emitters) {
 export default function createSoundFlow({
   color = "#38bdf8",
   colors,
+  crowdColors,
   emitters = [DEFAULT_EMITTER],
   markerVertices,
+  markerOpacity = 0.95,
+  stripeCount = STRIPE_COUNT,
   audioUrl = "sound/soundEffects.mp3",
   onAudioStateChange = () => {},
   onEnded = () => {},
@@ -167,31 +172,11 @@ export default function createSoundFlow({
     hitGeometry.setIndex([0, 1, 2, 0, 2, 3]);
     hitGeometry.computeVertexNormals();
   }
-  function setMarkerUv() {
+  if (markerVertices) {
     hitGeometry.setAttribute(
       "uv",
       new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2),
     );
-  }
-  if (markerVertices) setMarkerUv();
-  function setMarkerVertices(vertices) {
-    const position = hitGeometry.getAttribute("position");
-    if (!position || position.array.length !== vertices.length) {
-      hitGeometry.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(vertices, 3),
-      );
-      hitGeometry.setIndex([0, 1, 2, 0, 2, 3]);
-      setMarkerUv();
-    } else {
-      position.array.set(vertices);
-      position.needsUpdate = true;
-    }
-    hitGeometry.computeVertexNormals();
-    hitGeometry.computeBoundingSphere();
-  }
-  function setEmitters(emitters) {
-    flow.sourcePositions = emitters.length ? emitters : [DEFAULT_EMITTER];
   }
   const hit = new THREE.Mesh(
     hitGeometry,
@@ -200,7 +185,8 @@ export default function createSoundFlow({
           uniforms: {
             colorA: { value: teamColors[0] },
             colorB: { value: teamColors[1] ?? teamColors[0] },
-            stripes: { value: STRIPE_COUNT },
+            stripes: { value: stripeCount },
+            opacity: { value: markerOpacity },
           },
           vertexShader: `
             varying vec2 vUv;
@@ -213,10 +199,11 @@ export default function createSoundFlow({
             uniform vec3 colorA;
             uniform vec3 colorB;
             uniform float stripes;
+            uniform float opacity;
             varying vec2 vUv;
             void main() {
               float stripe = mod(floor(vUv.x * stripes), 2.0);
-              gl_FragColor = vec4(mix(colorA, colorB, stripe), 0.95);
+              gl_FragColor = vec4(mix(colorA, colorB, stripe), opacity);
               #include <colorspace_fragment>
             }
           `,
@@ -240,6 +227,10 @@ export default function createSoundFlow({
     );
   }
   group.add(points, hit);
+  const crowd = markerVertices
+    ? createCrowd(markerVertices, crowdColors?.length ? crowdColors : (colors?.length ? colors : [color]))
+    : null;
+  if (crowd) group.add(crowd.points);
 
   let audio;
   let audioContext;
@@ -249,15 +240,14 @@ export default function createSoundFlow({
   let audioVolume = DEFAULT_AUDIO_VOLUME;
   let disposed = false;
   let playing = false;
+  let playRequest = 0;
+  let pendingSeek = null;
   let emissionEnabled = false;
   let currentVolume = 0;
   let currentMidEnergy = 0;
-  let currentHighFrequency = 0;
   let currentBassEnergy = 0;
-  let currentTransient = 0;
-  let previousFrequencyData;
   let lastUpdateTime = null;
-  let emissionRemainder = 0;
+  let timeSinceWave = 1;
   let nextParticleIndex = 0;
 
   function initializeAudio() {
@@ -298,23 +288,30 @@ export default function createSoundFlow({
     analyser.maxDecibels = -18;
     analyser.smoothingTimeConstant = 0.65;
     frequencyData = new Uint8Array(analyser.frequencyBinCount);
-    previousFrequencyData = new Uint8Array(analyser.frequencyBinCount);
     const source = audioContext.createMediaElementSource(sound);
     source.connect(analyser);
     analyser.connect(audioContext.destination);
   }
 
   async function play() {
+    const request = ++playRequest;
     sharedAnalysis = null;
     const sound = initializeAudio();
     initializeAnalyser(sound);
     await audioContext.resume();
+    if (request !== playRequest || disposed) {
+      throw new DOMException("Playback interrupted", "AbortError");
+    }
     await sound.play();
+    if (request !== playRequest || disposed) {
+      throw new DOMException("Playback interrupted", "AbortError");
+    }
     playing = true;
     onAudioStateChange();
   }
 
   function pause() {
+    playRequest++;
     if (!audio) return;
     audio.pause();
     playing = false;
@@ -324,15 +321,19 @@ export default function createSoundFlow({
   function seek(timeSeconds) {
     const sound = initializeAudio();
     const seekToAvailablePosition = () => {
+      if (pendingSeek === null || disposed) return;
       const duration = sound.duration;
       sound.currentTime = Number.isFinite(duration)
-        ? THREE.MathUtils.clamp(timeSeconds, 0, duration)
-        : Math.max(0, timeSeconds);
+        ? THREE.MathUtils.clamp(pendingSeek, 0, duration)
+        : Math.max(0, pendingSeek);
+      pendingSeek = null;
     };
 
+    const wasPending = pendingSeek !== null;
+    pendingSeek = timeSeconds;
     if (sound.readyState >= HTMLMediaElement.HAVE_METADATA) {
       seekToAvailablePosition();
-    } else {
+    } else if (!wasPending) {
       sound.addEventListener("loadedmetadata", seekToAvailablePosition, {
         once: true,
       });
@@ -353,11 +354,7 @@ export default function createSoundFlow({
     if (audio) audio.volume = audioVolume;
   }
 
-  function emitParticle(index) {
-    const source =
-      flow.sourcePositions[
-        Math.floor(Math.random() * flow.sourcePositions.length)
-      ];
+  function emitParticle(index, source, energy) {
     flow.emitterX[index] = source.x;
     flow.emitterY[index] = source.y;
     flow.emitterZ[index] = source.heightOffset;
@@ -366,26 +363,36 @@ export default function createSoundFlow({
     flow.normalX[index] = -source.directionY;
     flow.normalY[index] = source.directionX;
     flow.ages[index] = 0;
+    flow.opacities[index] = 0;
     flow.colorIndex[index] = source.colorIndex ?? 0;
-    flow.lifetimes[index] = 1.6 + currentBassEnergy * 2.4;
-    flow.birthEnergy[index] = currentVolume;
-    flow.birthRadius[index] = FLOW_WIDTH * (0.45 + currentBassEnergy * 1.8);
-    flow.vortexAngles[index] = Math.random() * Math.PI * 2;
-    flow.intensityOffsets[index] = 0.6 + Math.random() * 0.4;
-    flow.baseSizes[index] = 7 + currentTransient * 7;
+    flow.lifetimes[index] = WAVE_LIFETIME;
+    flow.birthEnergy[index] = energy;
+    flow.lateralOffsets[index] = (Math.random() - 0.5) * 2.4;
+    flow.forwardOffsets[index] = (Math.random() - 0.5) * 1.2;
+    flow.intensityOffsets[index] = 0.65 + Math.random() * 0.35;
+    flow.baseSizes[index] = 4 + Math.random() * 1.5;
+  }
+
+  function emitWave(energy) {
+    const sources = flow.sourcePositions;
+    const count = Math.min(sources.length * 2, Math.floor(PARTICLE_COUNT / 5));
+    for (let i = 0; i < count; i++) {
+      const source = sources[Math.floor(i * sources.length / count)];
+      emitParticle(nextParticleIndex, source, energy);
+      nextParticleIndex = (nextParticleIndex + 1) % PARTICLE_COUNT;
+    }
   }
 
   function update(timeSeconds) {
     const deltaTime =
       lastUpdateTime === null
         ? 0
-        : THREE.MathUtils.clamp(timeSeconds - lastUpdateTime, 0, 0.1);
+        : Math.max(0, timeSeconds - lastUpdateTime);
     lastUpdateTime = timeSeconds;
 
     let midEnergy = 0;
     let bassEnergy = 0;
-    let highFrequency = 0;
-    let transient = 0;
+    let volume = 0;
     const activeAnalyser = sharedAnalysis?.analyser ?? analyser;
     const activeFrequencyData = sharedAnalysis?.frequencyData ?? frequencyData;
     if (activeAnalyser && activeFrequencyData) {
@@ -393,14 +400,9 @@ export default function createSoundFlow({
       const bassBandEnd = Math.min(4, activeFrequencyData.length);
       const lowBandEnd = Math.min(12, activeFrequencyData.length);
       const midBandEnd = Math.min(36, activeFrequencyData.length);
-      const highBandStart = Math.max(0, activeFrequencyData.length - 10);
       let totalEnergy = 0;
       for (let i = 0; i < activeFrequencyData.length; i++) {
         totalEnergy += activeFrequencyData[i];
-        transient += Math.max(
-          0,
-          activeFrequencyData[i] - previousFrequencyData[i],
-        );
       }
       for (let i = 1; i < bassBandEnd; i++) {
         bassEnergy += activeFrequencyData[i];
@@ -408,48 +410,25 @@ export default function createSoundFlow({
       for (let i = lowBandEnd; i < midBandEnd; i++) {
         midEnergy += activeFrequencyData[i];
       }
-      for (let i = highBandStart; i < activeFrequencyData.length; i++) {
-        highFrequency += activeFrequencyData[i];
-      }
-      currentVolume = THREE.MathUtils.lerp(
-        currentVolume,
-        totalEnergy / (activeFrequencyData.length * 255),
-        0.18,
-      );
+      volume = totalEnergy / (activeFrequencyData.length * 255);
       bassEnergy /= Math.max(1, bassBandEnd - 1) * 255;
       midEnergy /= Math.max(1, midBandEnd - lowBandEnd) * 255;
-      highFrequency /=
-        Math.max(1, activeFrequencyData.length - highBandStart) * 255;
-      transient /= activeFrequencyData.length * 255;
-      for (let i = 0; i < activeFrequencyData.length; i++) {
-        previousFrequencyData[i] = activeFrequencyData[i];
-      }
     }
-    currentTransient = THREE.MathUtils.lerp(currentTransient, transient, 0.28);
-    currentBassEnergy = THREE.MathUtils.lerp(currentBassEnergy, bassEnergy, 0.22);
-    currentMidEnergy = THREE.MathUtils.lerp(currentMidEnergy, midEnergy, 0.18);
-    currentHighFrequency = THREE.MathUtils.lerp(
-      currentHighFrequency,
-      highFrequency,
-      0.18,
-    );
+    const smoothing = 1 - (1 - 0.18) ** (deltaTime * 60);
+    const bassSmoothing = 1 - (1 - 0.22) ** (deltaTime * 60);
+    currentVolume = THREE.MathUtils.lerp(currentVolume, volume, smoothing);
+    currentBassEnergy = THREE.MathUtils.lerp(currentBassEnergy, bassEnergy, bassSmoothing);
+    currentMidEnergy = THREE.MathUtils.lerp(currentMidEnergy, midEnergy, smoothing);
 
-    // Tillfälligt avstängt: sidor utan 3D-markering (öst/väst) släpper inga partiklar.
-    // Ta bort `Boolean(markerVertices) &&` för att slå på dem igen.
     const canEmit = Boolean(markerVertices) && (playing || emissionEnabled);
-    const emissionRate = canEmit
-      ? 58 + currentVolume * 120 + currentTransient * 100
-      : 0;
-    emissionRemainder += canEmit ? deltaTime * emissionRate : 0;
+    const energy = Math.max(currentVolume, currentMidEnergy * 0.8, currentBassEnergy * 0.55);
+    crowd?.update(timeSeconds, (playing || emissionEnabled) ? energy : 0);
+    const inputEnergy = Math.max(volume, midEnergy * 0.8, bassEnergy * 0.55);
+    timeSinceWave += deltaTime;
+    const interval = THREE.MathUtils.lerp(1.05, 0.55, Math.min(energy * 2, 1));
     const positions = geometry.attributes.position.array;
     const colors = geometry.attributes.color.array;
     const opacities = flow.opacities;
-
-    while (emissionRemainder >= 1) {
-      emitParticle(nextParticleIndex);
-      nextParticleIndex = (nextParticleIndex + 1) % PARTICLE_COUNT;
-      emissionRemainder -= 1;
-    }
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const index = i * 3;
@@ -469,27 +448,14 @@ export default function createSoundFlow({
         continue;
       }
 
-      const distance = SOUND_SPEED * flow.ages[i];
-      const bassRadius = FLOW_WIDTH * (0.45 + currentBassEnergy * 1.8);
-      const radius =
-        THREE.MathUtils.lerp(
-          flow.birthRadius[i],
-          bassRadius,
-          Math.min(progress * 2, 1),
-        ) *
-        (0.35 + progress * 0.65);
-      const vortexAngle =
-        flow.vortexAngles[i] +
-        flow.ages[i] * (1.5 + currentHighFrequency * 12);
-      const width = Math.cos(vortexAngle) * radius;
-      const verticalVortex = Math.sin(vortexAngle) * radius * 0.35;
-      const archHeight =
-        (6 + currentMidEnergy * 16) * 2 * progress * (1 - progress);
-      const fadeIn = Math.min(progress * 8, 1);
-      const fadeOut = (1 - progress) ** 1.2;
+      const distance = SOUND_SPEED * flow.ages[i] + flow.forwardOffsets[i];
+      const width = flow.lateralOffsets[i] * (1 + progress * 0.7);
+      const archHeight = (2 + flow.birthEnergy[i] * 4) * Math.sin(progress * Math.PI);
+      const fadeIn = Math.min(progress * 10, 1);
+      const fadeOut = (1 - progress) ** 1.3;
       const intensity =
         flow.intensityOffsets[i] *
-        Math.min(1, 0.92 + flow.birthEnergy[i] * 4) *
+        (0.22 + Math.min(flow.birthEnergy[i] * 0.65, 0.3)) *
         fadeIn *
         fadeOut;
 
@@ -501,10 +467,7 @@ export default function createSoundFlow({
         flow.emitterY[i] +
         flow.directionY[i] * distance +
         flow.normalY[i] * width;
-      positions[index + 2] =
-        flow.emitterZ[i] +
-        archHeight +
-        verticalVortex;
+      positions[index + 2] = flow.emitterZ[i] + archHeight;
 
       const particleColor = teamColors[flow.colorIndex[i] % teamColors.length];
       colors[index] = particleColor.r;
@@ -512,6 +475,10 @@ export default function createSoundFlow({
       colors[index + 2] = particleColor.b;
       opacities[i] = intensity;
       flow.sizes[i] = flow.baseSizes[i];
+    }
+    if (canEmit && inputEnergy > 0.025 && energy > 0.025 && timeSinceWave >= interval) {
+      emitWave(energy);
+      timeSinceWave = 0;
     }
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
@@ -521,6 +488,7 @@ export default function createSoundFlow({
 
   function dispose() {
     disposed = true;
+    playRequest++;
     if (audio) {
       audio.pause();
       audio.src = "";
@@ -530,14 +498,13 @@ export default function createSoundFlow({
     hit.geometry.dispose();
     points.material.dispose();
     hit.material.dispose();
+    crowd?.dispose();
   }
 
   return {
     group,
     hit,
     hasMarker: Boolean(markerVertices),
-    setMarkerVertices,
-    setEmitters,
     prepareAudio: initializeAudio,
     play,
     pause,
@@ -547,9 +514,6 @@ export default function createSoundFlow({
     getAudioUrl: () => audioUrl,
     shareAudioAnalysis(sourceFlow) {
       sharedAnalysis = sourceFlow.getAudioAnalysis();
-      previousFrequencyData = new Uint8Array(
-        sharedAnalysis.frequencyData.length,
-      );
     },
     getAudioAnalysis: () => ({ analyser, frequencyData }),
     setVolume,

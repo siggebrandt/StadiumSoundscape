@@ -1,7 +1,7 @@
 {
   "location": {
     "name": "Gamla Ullevi",
-    "longitude": 11.980072976676028,
+    "longitude": 11.980072976676029,
     "latitude": 57.70624177231193,
     "zoom": 17.5,
     "pitch": 45,
@@ -15,51 +15,33 @@
         "id": "firstHalf",
         "label": "Första halvlek",
         "type": "regular",
-        "startTime": "00:00",
-        "endTime": "45:00",
+        "startTime": "00:30:28",
+        "endTime": "01:20:41",
         "clockStart": 0,
         "clockEnd": 45
-      },
-      {
-        "id": "firstHalfAddedTime",
-        "label": "Tilläggstid, första halvlek",
-        "type": "added-time",
-        "startTime": "45:00",
-        "endTime": "50:00",
-        "clockStart": 45,
-        "clockEnd": 50
       },
       {
         "id": "halftime",
         "label": "Halvtid",
         "type": "halftime",
-        "startTime": "50:00",
-        "endTime": "51:00"
+        "startTime": "01:20:41",
+        "endTime": "01:35:58"
       },
       {
         "id": "secondHalf",
         "label": "Andra halvlek",
         "type": "regular",
-        "startTime": "51:00",
-        "endTime": "96:00",
+        "startTime": "01:35:58",
+        "endTime": "02:24:32",
         "clockStart": 45,
         "clockEnd": 90
-      },
-      {
-        "id": "secondHalfAddedTime",
-        "label": "Tilläggstid, andra halvlek",
-        "type": "added-time",
-        "startTime": "96:00",
-        "endTime": "101:00",
-        "clockStart": 90,
-        "clockEnd": 95
       },
       {
         "id": "fullTime",
         "label": "Slut",
         "type": "full-time",
-        "startTime": "101:00",
-        "endTime": "101:00"
+        "startTime": "02:24:32",
+        "endTime": "02:24:32"
       }
     ],
     "teams": [
@@ -69,8 +51,7 @@
         "shortName": "GAIS",
         "abbreviation": "GAIS",
         "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/8222.png",
-        "color": "#009d58",
-        "score": 1
+        "color": "#009d58"
       },
       {
         "id": "2556",
@@ -78,113 +59,272 @@
         "shortName": "Göteborg",
         "abbreviation": "GOT",
         "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2556.png",
-        "color": "#fabd00",
-        "score": 1
+        "color": "#fabd00"
       }
     ],
     "popups": [
-      {"text": "Mål!!", "position": "north", "timeStart": "10:00", "timeEnd": "12:00"},
-      {"text": "Heja GAIS!", "position": "south", "timeStart": "18:30", "timeEnd": "20:00"},
-      {"text": "Stort tryck!", "position": "south", "timeStart": "27:00", "timeEnd": "29:00"},
-      {"text": "Utvisning!", "position": "north", "timeStart": "36:00", "timeEnd": "38:00"},
-      {"text": "Halvtidsvisselpipa", "position": "north", "timeStart": "45:00", "timeEnd": "47:00"},
-      {"text": "Nära mål!", "position": "south", "timeStart": "69:00", "timeEnd": "71:00"},
-      {"text": "Vilken räddning!", "position": "north", "timeStart": "78:00", "timeEnd": "80:00"},
-      {"text": "Slutspurt!", "position": "north", "timeStart": "87:00", "timeEnd": "89:00"}
+      {
+        "text": "GAIS-ramsa",
+        "position": "south",
+        "timeStart": "02:10:56",
+        "timeEnd": "02:11:23"
+      }
     ],
     "events": [
       {
-        "startTime": "10:00",
-        "endTime": "10:01",
-        "label": "Moment 1"
+        "startTime": "00:59:49",
+        "endTime": "00:59:49",
+        "label": "Foul"
       },
       {
-        "startTime": "27:00",
-        "endTime": "27:01",
-        "label": "Moment 2"
+        "startTime": "00:59:53",
+        "endTime": "00:59:53",
+        "label": "Straff bekräftad"
       },
       {
-        "startTime": "45:00",
-        "endTime": "45:01",
-        "label": "Moment 3"
+        "startTime": "01:00:09",
+        "endTime": "01:00:09",
+        "label": "GAIS-supporter, mic 10"
       },
       {
-        "startTime": "69:00",
-        "endTime": "69:01",
-        "label": "Moment 4"
+        "startTime": "01:20:30",
+        "endTime": "01:20:30",
+        "label": "Buhrop, mic 18"
       },
       {
-        "startTime": "87:00",
-        "endTime": "87:01",
-        "label": "Moment 5"
+        "startTime": "02:02:15",
+        "endTime": "02:02:15",
+        "label": "IFK-chans"
+      },
+      {
+        "startTime": "02:10:11",
+        "endTime": "02:10:51",
+        "label": "Byte, GAIS nr 9"
+      },
+      {
+        "startTime": "02:10:56",
+        "endTime": "02:11:23",
+        "label": "GAIS-ramsa"
+      },
+      {
+        "startTime": "02:33:38",
+        "endTime": "02:45:33",
+        "label": "Publiken lämnar"
+      },
+      {
+        "startTime": "02:34:20",
+        "endTime": "02:34:20",
+        "label": "Mic 18 faller"
+      },
+      {
+        "startTime": "02:40:36",
+        "endTime": "02:40:36",
+        "label": "Mic 7 faller"
+      },
+      {
+        "startTime": "02:45:33",
+        "endTime": "02:45:33",
+        "label": "Mikrofoner slutar"
+      }
+    ],
+    "incidents": [
+      {
+        "type": "goal",
+        "time": "01:01:33",
+        "teamId": "8222",
+        "label": "GAIS mål på straff"
+      },
+      {
+        "type": "yellow-card",
+        "time": "01:08:21",
+        "teamId": "2556",
+        "label": "Gult kort, IFK"
+      },
+      {
+        "type": "yellow-card",
+        "time": "01:09:02",
+        "teamId": "8222",
+        "label": "Gult kort, GAIS"
+      },
+      {
+        "type": "goal",
+        "time": "02:02:30",
+        "teamId": "2556",
+        "label": "Mål, IFK"
+      },
+      {
+        "type": "substitution",
+        "time": "02:10:11",
+        "teamId": "8222",
+        "label": "Byte, GAIS nr 9"
       }
     ]
+  },
+  "playbackAudioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/everything.ogg",
+  "ambience": {
+    "startTime": "02:33:38"
   },
   "stands": {
     "west": {
       "lengthMeters": 110,
       "depthMeters": 24,
-      "heightRangeMeters": [24, 34],
+      "heightRangeMeters": [
+        24,
+        34
+      ],
       "emitterSpacingMeters": 4,
-      "audioUrl": "/sound/soundEffects.mp3",
-      "color": "#ff4444",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/7.ogg",
+      "color": "#a89a8f",
       "footprint": [
-        [11.97908094, 57.706735846],
-        [11.97948448, 57.706735846],
-        [11.97948448, 57.705747699],
-        [11.97908094, 57.705747699]
-      ]
+        [
+          11.97908094,
+          57.706735846
+        ],
+        [
+          11.97948448,
+          57.706735846
+        ],
+        [
+          11.97948448,
+          57.705747699
+        ],
+        [
+          11.97908094,
+          57.705747699
+        ]
+      ],
+      "marker": true,
+      "markerInsetMeters": 1.5,
+      "markerWidthMeters": 8.5,
+      "markerHeightRangeMeters": [
+        1,
+        25
+      ],
+      "colors": [
+        "#a89a8f",
+        "#c4b8ae"
+      ],
+      "markerOpacity": 0.75
     },
     "north": {
       "lengthMeters": 70,
       "depthMeters": 24,
-      "heightRangeMeters": [24, 34],
+      "heightRangeMeters": [
+        24,
+        34
+      ],
       "emitterSpacingMeters": 4,
       "marker": true,
       "markerInsetMeters": 5,
       "markerWidthMeters": 8.5,
-      "markerHeightRangeMeters": [1, 15.5],
-      "audioUrl": "/sound/soundEffects.mp3",
+      "markerHeightRangeMeters": [
+        1,
+        15.5
+      ],
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/18.ogg",
       "color": "#0057b8",
-      "colors": ["#0057b8", "#ffffff"],
+      "colors": [
+        "#0057b8",
+        "#ffffff"
+      ],
       "footprint": [
-        [11.97948448, 57.706928984],
-        [11.980661473, 57.706928984],
-        [11.980661473, 57.706713388],
-        [11.97948448, 57.706713388]
+        [
+          11.97948448,
+          57.706928984
+        ],
+        [
+          11.980661473,
+          57.706928984
+        ],
+        [
+          11.980661473,
+          57.706713388
+        ],
+        [
+          11.97948448,
+          57.706713388
+        ]
       ]
     },
     "east": {
       "lengthMeters": 110,
       "depthMeters": 24,
-      "heightRangeMeters": [24, 34],
+      "heightRangeMeters": [
+        24,
+        34
+      ],
       "emitterSpacingMeters": 4,
-      "audioUrl": "/sound/soundEffects.mp3",
-      "color": "#44ff44",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/14.ogg",
+      "color": "#a89a8f",
       "footprint": [
-        [11.980661473, 57.706735846],
-        [11.981065014, 57.706735846],
-        [11.981065014, 57.705747699],
-        [11.980661473, 57.705747699]
-      ]
+        [
+          11.980661473,
+          57.706735846
+        ],
+        [
+          11.981065014,
+          57.706735846
+        ],
+        [
+          11.981065014,
+          57.705747699
+        ],
+        [
+          11.980661473,
+          57.705747699
+        ]
+      ],
+      "marker": true,
+      "markerInsetMeters": 2.5,
+      "markerWidthMeters": 8.5,
+      "markerHeightRangeMeters": [
+        1,
+        25
+      ],
+      "colors": [
+        "#a89a8f",
+        "#c4b8ae"
+      ],
+      "markerOpacity": 0.75
     },
     "south": {
       "lengthMeters": 70,
       "depthMeters": 24,
-      "heightRangeMeters": [24, 34],
+      "heightRangeMeters": [
+        24,
+        34
+      ],
       "emitterSpacingMeters": 4,
       "marker": true,
       "markerInsetMeters": 0.5,
       "markerWidthMeters": 8.5,
-      "markerHeightRangeMeters": [4, 18.5],
-      "audioUrl": "/sound/soundEffects.mp3",
+      "markerHeightRangeMeters": [
+        4,
+        18.5
+      ],
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
       "color": "#00923f",
-      "colors": ["#00923f", "#111111"],
+      "colors": [
+        "#00923f",
+        "#111111"
+      ],
       "footprint": [
-        [11.97948448, 57.705770157],
-        [11.980661473, 57.705770157],
-        [11.980661473, 57.705554561],
-        [11.97948448, 57.705554561]
+        [
+          11.97948448,
+          57.705770157
+        ],
+        [
+          11.980661473,
+          57.705770157
+        ],
+        [
+          11.980661473,
+          57.705554561
+        ],
+        [
+          11.97948448,
+          57.705554561
+        ]
       ]
     }
   }

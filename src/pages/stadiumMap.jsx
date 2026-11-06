@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Map, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -9,7 +9,7 @@ import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
 import Navigation from "../components/navigation";
 import GameStatsSlider from "../components/gameStatsSlider";
-import MarkerTuner from "../components/markerTuner";
+import { getMatchStart, parsePlaybackTime } from "../components/matchTimeline";
 
 const ARENAS = {
   ullevi,
@@ -24,59 +24,22 @@ export default function StadiumMap() {
   const mapRef = useRef(null);
   const activeArenaKeyRef = useRef("ullevi");
   const [activeArenaKey, setActiveArenaKey] = useState("ullevi");
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [transitioningName, setTransitioningName] = useState("");
+  const [listeningMode, setListeningMode] = useState("match");
+  const hasLoadedRef = useRef(false);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const [transitioningName, setTransitioningName] = useState(
+    ullevi.location.name,
+  );
   const [playback, setPlayback] = useState({
-    currentTime: 0,
+    currentTime: getMatchStart(ullevi.match),
     duration: 0,
     mode: "paused",
   });
   const audioControlsRef = useRef(null);
   const playbackActionRef = useRef(0);
-  const [selectedMarkerSide, setSelectedMarkerSide] = useState("north");
-  const [markerSettings, setMarkerSettings] = useState(() =>
-    Object.fromEntries(
-      Object.entries(ARENAS).map(([arenaKey, arena]) => [
-        arenaKey,
-        Object.fromEntries(
-          Object.entries(arena.stands)
-            .filter(([, stand]) => stand.marker)
-            .map(([side, stand]) => [
-              side,
-              {
-                insetMeters: stand.markerInsetMeters ?? 8,
-                widthMeters: stand.markerWidthMeters ?? 4,
-                heightRangeMeters: stand.markerHeightRangeMeters ?? [4, 12],
-              },
-            ]),
-        ),
-      ]),
-    ),
-  );
-
   const activeArena = ARENAS[activeArenaKey];
-  const markerSides = Object.keys(markerSettings[activeArenaKey]);
-  const activeMarkerSettings =
-    markerSettings[activeArenaKey][selectedMarkerSide];
+  const playbackAudioUrl = activeArena.playbackAudioUrl;
   const mapPanning = mapBoxControls(mapRef);
-
-  const handleMarkerSettingsChange = (changes) => {
-    const updatedSettings = {
-      ...activeMarkerSettings,
-      ...changes,
-    };
-    setMarkerSettings((previous) => ({
-      ...previous,
-      [activeArenaKey]: {
-        ...previous[activeArenaKey],
-        [selectedMarkerSide]: updatedSettings,
-      },
-    }));
-    audioControlsRef.current?.updateMarkerSettings(
-      selectedMarkerSide,
-      updatedSettings,
-    );
-  };
 
   const handleAudioStateChange = useCallback(
     (duration, currentTime) => {
@@ -95,7 +58,7 @@ export default function StadiumMap() {
     playbackActionRef.current += 1;
     setPlayback((previous) => ({
       ...previous,
-      currentTime: previous.duration,
+      currentTime: audioControlsRef.current?.getCurrentTime() ?? previous.currentTime,
       mode: "paused",
     }));
   }, [activeArenaKey]);
@@ -110,8 +73,13 @@ export default function StadiumMap() {
   );
 
   const handleSeek = (time) => {
-    audioControlsRef.current?.seekAll(time);
-    setPlayback((previous) => ({ ...previous, currentTime: time }));
+    const start = listeningMode === "match"
+      ? getMatchStart(activeArena.match)
+      : parsePlaybackTime(activeArena.ambience?.startTime);
+    if (start === null) return;
+    const target = Math.max(time, start);
+    audioControlsRef.current?.seekAll(target);
+    setPlayback((previous) => ({ ...previous, currentTime: target }));
   };
 
   const handleTogglePlayback = () => {
@@ -129,25 +97,79 @@ export default function StadiumMap() {
       return;
     }
 
+    const start = listeningMode === "ambience"
+      ? parsePlaybackTime(activeArena.ambience?.startTime)
+      : getMatchStart(activeArena.match);
+    if (start === null || start >= playback.duration) return;
+    if (controls.getCurrentTime() < start || controls.getCurrentTime() >= playback.duration) {
+      controls.seekAll(start);
+    }
+
     const requestId = ++playbackActionRef.current;
     controls.playAll().then((results) => {
       if (requestId === playbackActionRef.current) {
         const started = results.some((result) => result.status === "fulfilled");
         if (!started) {
+          for (const result of results) {
+            if (result.status === "rejected") {
+              console.error("Kunde inte spela upp huvudljudet:", result.reason);
+            }
+          }
           setPlayback((previous) => ({ ...previous, mode: "paused" }));
         }
       }
     });
   };
 
+  const handleSelectMode = (mode) => {
+    if (mode === listeningMode || isTransitioning) return;
+    const start = mode === "ambience"
+      ? parsePlaybackTime(activeArena.ambience?.startTime)
+      : getMatchStart(activeArena.match);
+    playbackActionRef.current += 1;
+    audioControlsRef.current?.pauseAll();
+    if (start !== null) audioControlsRef.current?.seekAll(start);
+    setPlayback((previous) => ({
+      ...previous,
+      currentTime: start ?? 0,
+      mode: "paused",
+    }));
+    setListeningMode(mode);
+  };
+
+  const ambienceStart = parsePlaybackTime(activeArena.ambience?.startTime);
+  const matchStart = getMatchStart(activeArena.match);
+  const canPlayStand =
+    listeningMode === "match" ||
+    (ambienceStart !== null && playback.duration > ambienceStart);
+
+  const prepareStandPlayback = () => {
+    const start = listeningMode === "ambience" ? ambienceStart : matchStart;
+    if (start === null) return;
+    const time = audioControlsRef.current?.getCurrentTime();
+    if (time < start || (playback.duration > 0 && time >= playback.duration)) {
+      audioControlsRef.current?.seekAll(start);
+    }
+  };
+
+  // Säkerhetsnät så laddningsskärmen aldrig fastnar om kartan aldrig blir idle.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      hasLoadedRef.current = true;
+      setIsTransitioning(false);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleSelectArena = (arenaKey) => {
     if (arenaKey === activeArenaKey || isTransitioning) return;
 
     activeArenaKeyRef.current = arenaKey;
+    setListeningMode("match");
     playbackActionRef.current += 1;
     audioControlsRef.current?.pauseAll();
-    setPlayback({ currentTime: 0, duration: 0, mode: "paused" });
     const targetArena = ARENAS[arenaKey];
+    setPlayback({ currentTime: getMatchStart(targetArena.match), duration: 0, mode: "paused" });
     setTransitioningName(targetArena.location.name);
     setIsTransitioning(true);
 
@@ -187,11 +209,15 @@ export default function StadiumMap() {
   return (
     <>
       <GameStatsSlider
-        key={activeArenaKey}
+        key={`${activeArenaKey}-${listeningMode}`}
         currentTime={playback.currentTime}
         duration={playback.duration}
         playbackMode={playback.mode}
         match={activeArena.match}
+        listeningMode={listeningMode}
+        ambienceStart={ambienceStart}
+        matchStart={matchStart}
+        hasPlaybackAudio={Boolean(playbackAudioUrl)}
         onSeek={handleSeek}
         onTogglePlayback={handleTogglePlayback}
         getStandScreenPoint={(side) =>
@@ -257,23 +283,21 @@ export default function StadiumMap() {
       <Navigation
         activeArena={activeArenaKey}
         onSelectArena={handleSelectArena}
+        listeningMode={listeningMode}
+        onSelectMode={handleSelectMode}
       />
-      {import.meta.env.DEV && (
-        <MarkerTuner
-          sides={markerSides}
-          selectedSide={selectedMarkerSide}
-          settings={activeMarkerSettings}
-          onSelectSide={setSelectedMarkerSide}
-          onChange={handleMarkerSettingsChange}
-        />
-      )}
-
       <div
         style={{ width: "100%", height: "100vh", touchAction: "none" }}
         {...mapPanning}
       >
         <Map
           ref={mapRef}
+          onIdle={() => {
+            if (!hasLoadedRef.current) {
+              hasLoadedRef.current = true;
+              setIsTransitioning(false);
+            }
+          }}
           dragPan={false}
           dragRotate={false}
           doubleClickZoom={false}
@@ -341,11 +365,13 @@ export default function StadiumMap() {
           />
           <RenderObject
             stands={activeArena.stands}
-            markerSettings={markerSettings[activeArenaKey]}
+            playbackAudioUrl={playbackAudioUrl}
             onAudioStateChange={handleAudioStateChange}
             onPlaybackModeChange={handlePlaybackModeChange}
             onPlaybackEnded={handlePlaybackEnded}
             controlsRef={audioControlsRef}
+            canPlayStand={canPlayStand}
+            onBeforeStandPlayback={prepareStandPlayback}
           />
         </Map>
       </div>

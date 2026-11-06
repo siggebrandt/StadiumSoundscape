@@ -4,10 +4,10 @@ import { useEffect, useId, useRef } from "react";
 import { useMap } from "react-map-gl/mapbox";
 import createSoundFlow from "./createSoundFlow";
 
-// Måste matcha STRIPE_COUNT i createSoundFlow.js så att partiklar får samma färg som ränden de släpps från.
+// Standardantal ränder; stands med stripeWidthMeters får antal utifrån längd.
 const STRIPE_COUNT = 10;
 
-function createMarkerData(stand, corners, center, standPosition, settings) {
+function createMarkerData(stand, corners, center, standPosition) {
   let innerEdge = 0;
   let closestEdgeDistance = Infinity;
   corners.forEach((corner, edgeIndex) => {
@@ -34,10 +34,9 @@ function createMarkerData(stand, corners, center, standPosition, settings) {
     sideCenter.x - (start.x + end.x) / 2,
     sideCenter.y - (start.y + end.y) / 2,
   ).normalize();
-  const inset = settings?.insetMeters ?? stand.markerInsetMeters ?? 8;
-  const width = settings?.widthMeters ?? stand.markerWidthMeters ?? 4;
+  const inset = stand.markerInsetMeters ?? 8;
+  const width = stand.markerWidthMeters ?? 4;
   const [minHeight, maxHeight] =
-    settings?.heightRangeMeters ??
     stand.markerHeightRangeMeters ??
     [4, 12];
   const standDepth = Math.max(
@@ -70,6 +69,9 @@ function createMarkerData(stand, corners, center, standPosition, settings) {
   const alongLength = Math.hypot(end.x - start.x, end.y - start.y);
   const alongDivisions = Math.max(1, Math.ceil(alongLength / emitterSpacing));
   const widthDivisions = Math.max(1, Math.ceil(width / emitterSpacing));
+  const stripeCount = stand.stripeWidthMeters
+    ? Math.max(1, Math.round(alongLength / stand.stripeWidthMeters))
+    : STRIPE_COUNT;
   const emitters = [];
   for (let column = 0; column < alongDivisions; column++) {
     const along = (column + 0.5) / alongDivisions;
@@ -79,7 +81,7 @@ function createMarkerData(stand, corners, center, standPosition, settings) {
       const height =
         minHeight + heightPerMeter * distanceFromInnerEdge;
       emitters.push({
-        colorIndex: Math.floor(along * STRIPE_COUNT) % 2,
+        colorIndex: Math.floor(along * stripeCount) % 2,
         x:
           start.x * (1 - along) +
           end.x * along +
@@ -96,7 +98,7 @@ function createMarkerData(stand, corners, center, standPosition, settings) {
     }
   }
 
-  return { markerVertices, emitters };
+  return { markerVertices, emitters, stripeCount };
 }
 
 function createStandEmitters(
@@ -104,7 +106,6 @@ function createStandEmitters(
   origin,
   meterScale,
   standPositions,
-  markerSettings = {},
 ) {
   const center = standPositions.reduce(
     (sum, point) => ({
@@ -182,14 +183,12 @@ function createStandEmitters(
           corners,
           center,
           standPositions[index],
-          markerSettings[stand.id],
         )
       : null;
     return {
       emitters: markerData?.emitters ?? emitters,
       markerVertices: markerData?.markerVertices ?? null,
-      corners,
-      center,
+      stripeCount: markerData?.stripeCount ?? STRIPE_COUNT,
     };
   });
 }
@@ -197,12 +196,12 @@ function createStandEmitters(
 function createLayer({
   id,
   stands,
+  playbackAudioUrl,
   color,
   altitude,
   onAudioStateChange,
   onPlaybackModeChange,
   onPlaybackEnded,
-  markerSettings,
   map,
 }) {
   const list = Object.entries(stands ?? {})
@@ -237,6 +236,7 @@ function createLayer({
   const camera = new THREE.Camera();
   const scene = new THREE.Scene();
   const soundFlows = [];
+  let playbackFlow = null;
   let renderer;
   let playbackSequence = 0;
   let playbackMode = "paused";
@@ -258,18 +258,18 @@ function createLayer({
     modelOrigin,
     modelScale,
     localPositions,
-    markerSettings,
   );
 
   function notifyAudioState() {
     onAudioStateChange(
-      Math.max(...soundFlows.map((flow) => flow.getDuration()), 0),
+      Math.max(...soundFlows.map((flow) => flow.getDuration()), playbackFlow?.getDuration() ?? 0),
       getCurrentTime(),
     );
   }
 
   function getCurrentTime() {
-    const playingFlows = soundFlows.filter((flow) => flow.isPlaying());
+    const playingFlows = [...soundFlows, ...(playbackFlow ? [playbackFlow] : [])]
+      .filter((flow) => flow.isPlaying());
     if (playingFlows.length) {
       timelinePosition = Math.max(
         ...playingFlows.map((flow) => flow.getCurrentTime()),
@@ -292,10 +292,28 @@ function createLayer({
       });
       renderer.autoClear = false;
 
+      if (playbackAudioUrl) {
+        playbackFlow = createSoundFlow({
+          audioUrl: playbackAudioUrl,
+          onAudioStateChange: notifyAudioState,
+          onEnded: () => {
+            timelinePosition = playbackFlow.getCurrentTime();
+            soundFlows.forEach((flow) => flow.setEmissionEnabled(false));
+            playbackMode = "paused";
+            activeFlow = null;
+            onPlaybackEnded();
+          },
+        });
+        playbackFlow.prepareAudio();
+      }
+
       list.forEach((stand, index) => {
         const soundFlow = createSoundFlow({
           color: stand.color ?? color,
           colors: stand.colors,
+          crowdColors: stand.crowdColors,
+          markerOpacity: stand.markerOpacity,
+          stripeCount: standData[index].stripeCount,
           emitters: standData[index].emitters,
           markerVertices: standData[index].markerVertices,
           audioUrl: stand.audioUrl,
@@ -350,24 +368,15 @@ function createLayer({
 
     onRemove() {
       soundFlows.forEach((flow) => flow.dispose());
+      playbackFlow?.dispose();
     },
 
     playAll() {
       const request = ++playbackSequence;
-      const tracksByUrl = new Map();
-      soundFlows.forEach((flow) => {
-        const url = flow.getAudioUrl();
-        const track = tracksByUrl.get(url) ?? [];
-        track.push(flow);
-        tracksByUrl.set(url, track);
-      });
-      const trackGroups = [...tracksByUrl.values()];
-      const trackLeaders = trackGroups.map(([leader]) => leader);
-      const mixVolume = 0.35 / Math.sqrt(trackLeaders.length);
-      const duration = Math.max(
-        ...soundFlows.map((flow) => flow.getDuration()),
-        0,
-      );
+      if (!playbackFlow) {
+        return Promise.resolve([{ status: "rejected", reason: new Error("No playback audio URL configured.") }]);
+      }
+      const duration = playbackFlow.getDuration();
       const startTime =
         duration > 0 && timelinePosition >= duration ? 0 : timelinePosition;
       timelinePosition = startTime;
@@ -376,25 +385,13 @@ function createLayer({
         flow.setEmissionEnabled(false);
         flow.seek(startTime);
       });
-      const playRequests = trackGroups.map(([leader, ...followers]) => {
-        leader.setVolume(mixVolume);
-        const playRequest = leader.play();
-        followers.forEach((flow) => {
-          flow.shareAudioAnalysis(leader);
-          flow.setEmissionEnabled(true);
-        });
-        return playRequest;
-      });
-      return Promise.allSettled(playRequests).then((results) => {
-        trackGroups.forEach(([, ...followers], index) => {
-          if (results[index].status === "rejected") {
-            followers.forEach((flow) => flow.setEmissionEnabled(false));
-          }
-        });
-        if (
-          request === playbackSequence &&
-          results.some((result) => result.status === "fulfilled")
-        ) {
+      playbackFlow.seek(startTime);
+      return Promise.allSettled([playbackFlow.play()]).then((results) => {
+        if (request === playbackSequence && results[0].status === "fulfilled") {
+          soundFlows.forEach((flow) => {
+            flow.shareAudioAnalysis(playbackFlow);
+            flow.setEmissionEnabled(true);
+          });
           playbackMode = "all";
           activeFlow = null;
           onPlaybackModeChange("all");
@@ -403,7 +400,16 @@ function createLayer({
       });
     },
 
-    playSolo(selectedFlow) {
+    playSolo(clickedFlow) {
+      // Stands med samma `group` fungerar som ett enda stand.
+      const groupKey = (flow) => {
+        const stand = list[soundFlows.indexOf(flow)];
+        return stand?.group ?? stand?.id;
+      };
+      const key = groupKey(clickedFlow);
+      const members = soundFlows.filter((flow) => groupKey(flow) === key);
+      const selectedFlow = members[0];
+
       if (
         playbackMode === "solo" &&
         activeFlow === selectedFlow &&
@@ -423,17 +429,20 @@ function createLayer({
 
       const request = ++playbackSequence;
       const currentTime = getCurrentTime();
+      playbackFlow?.pause();
       soundFlows.forEach((flow) => {
         flow.pause();
         flow.setEmissionEnabled(false);
       });
-      selectedFlow.setVolume(0.35);
-      selectedFlow.setEmissionEnabled(true);
+      members.forEach((flow) => {
+        flow.setVolume(0.35 / members.length);
+        flow.setEmissionEnabled(true);
+        flow.seek(currentTime);
+      });
       playbackMode = "solo";
       activeFlow = selectedFlow;
       onPlaybackModeChange("solo");
-      selectedFlow.seek(currentTime);
-      selectedFlow.play().then(
+      Promise.all(members.map((flow) => flow.play())).then(
         () => {
           if (request === playbackSequence) {
             playbackMode = "solo";
@@ -454,6 +463,7 @@ function createLayer({
     pauseAll() {
       playbackSequence++;
       timelinePosition = getCurrentTime();
+      playbackFlow?.pause();
       soundFlows.forEach((flow) => {
         flow.pause();
         flow.setEmissionEnabled(false);
@@ -465,24 +475,10 @@ function createLayer({
     seekAll(timeSeconds) {
       timelinePosition = timeSeconds;
       soundFlows.forEach((flow) => flow.seek(timeSeconds));
+      playbackFlow?.seek(timeSeconds);
     },
 
     getCurrentTime,
-
-    updateMarkerSettings(standId, settings) {
-      const index = list.findIndex((stand) => stand.id === standId);
-      if (index < 0 || !standData[index].markerVertices) return;
-      const markerData = createMarkerData(
-        list[index],
-        standData[index].corners,
-        standData[index].center,
-        localPositions[index],
-        settings,
-      );
-      soundFlows[index].setMarkerVertices(markerData.markerVertices);
-      soundFlows[index].setEmitters(markerData.emitters);
-      map.triggerRepaint();
-    },
 
     // Skärmposition (CSS-pixlar) för mitten av en markering, eller null om den inte syns.
     getStandScreenPoint(standId) {
@@ -561,21 +557,23 @@ function createLayer({
 
 export default function RenderObject({
   stands,
+  playbackAudioUrl,
   color = "#38bdf8",
   altitude = 5,
   onAudioStateChange,
   onPlaybackModeChange,
   onPlaybackEnded,
-  markerSettings = {},
   controlsRef,
+  canPlayStand = true,
+  onBeforeStandPlayback,
 }) {
   const { current: mapRef } = useMap();
   const layerId = useId();
-  const markerSettingsRef = useRef(markerSettings);
+  const standPlaybackRef = useRef({ canPlayStand, onBeforeStandPlayback });
 
   useEffect(() => {
-    markerSettingsRef.current = markerSettings;
-  }, [markerSettings]);
+    standPlaybackRef.current = { canPlayStand, onBeforeStandPlayback };
+  }, [canPlayStand, onBeforeStandPlayback]);
 
   useEffect(() => {
     if (!mapRef || !Object.keys(stands ?? {}).length) return;
@@ -583,17 +581,19 @@ export default function RenderObject({
     let layer = null;
     let down = null;
 
+    let disposed = false;
     const add = () => {
+      if (disposed) return;
       if (map.getLayer(layerId)) map.removeLayer(layerId);
       layer = createLayer({
         id: layerId,
         stands,
+        playbackAudioUrl,
         color,
         altitude,
         onAudioStateChange,
         onPlaybackModeChange,
         onPlaybackEnded,
-        markerSettings: markerSettingsRef.current,
         map,
       });
       controlsRef.current = layer;
@@ -603,29 +603,48 @@ export default function RenderObject({
     // Ignorera klick som egentligen var en drag (rotation)
     const onDown = (e) => (down = e.point);
     const onClick = (e) => {
-      if (!layer) return;
+      if (!layer || !standPlaybackRef.current.canPlayStand) return;
       if (down && Math.hypot(e.point.x - down.x, e.point.y - down.y) > 5)
         return;
       const hit = layer.pick(e.point);
       if (hit) {
+        standPlaybackRef.current.onBeforeStandPlayback?.();
         layer.playSolo(hit);
         map.triggerRepaint();
       }
     };
     const onMove = (e) => {
       if (!layer) return;
-      map.getCanvas().style.cursor = layer.pick(e.point) ? "pointer" : "";
+      map.getCanvas().style.cursor =
+        standPlaybackRef.current.canPlayStand && layer.pick(e.point) ? "pointer" : "";
     };
 
-    if (map.isStyleLoaded()) add();
-    else map.once("style.load", add);
+    // isStyleLoaded() är false medan plattor laddas, så vänta inte bara på style.load.
+    const tryAdd = () => {
+      if (disposed || layer) return;
+      try {
+        add();
+      } catch {
+        layer = null;
+        return;
+      }
+      map.off("style.load", tryAdd);
+      map.off("idle", tryAdd);
+    };
+    tryAdd();
+    if (!layer) {
+      map.on("style.load", tryAdd);
+      map.on("idle", tryAdd);
+    }
 
     map.on("mousedown", onDown);
     map.on("click", onClick);
     map.on("mousemove", onMove);
 
     return () => {
-      map.off("style.load", add);
+      disposed = true;
+      map.off("style.load", tryAdd);
+      map.off("idle", tryAdd);
       map.off("mousedown", onDown);
       map.off("click", onClick);
       map.off("mousemove", onMove);
@@ -636,6 +655,7 @@ export default function RenderObject({
     mapRef,
     layerId,
     stands,
+    playbackAudioUrl,
     color,
     altitude,
     onAudioStateChange,

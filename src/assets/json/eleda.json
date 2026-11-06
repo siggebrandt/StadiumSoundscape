@@ -15,8 +15,8 @@
         "id": "firstHalf",
         "label": "Första halvlek",
         "type": "regular",
-        "startTime": "00:00",
-        "endTime": "45:00",
+        "startTime": "00:00.000",
+        "endTime": "01:12.267",
         "clockStart": 0,
         "clockEnd": 45
       },
@@ -24,8 +24,8 @@
         "id": "firstHalfAddedTime",
         "label": "Tilläggstid, första halvlek",
         "type": "added-time",
-        "startTime": "45:00",
-        "endTime": "50:00",
+        "startTime": "01:12.267",
+        "endTime": "01:20.297",
         "clockStart": 45,
         "clockEnd": 50
       },
@@ -33,15 +33,15 @@
         "id": "halftime",
         "label": "Halvtid",
         "type": "halftime",
-        "startTime": "50:00",
-        "endTime": "51:00"
+        "startTime": "01:20.297",
+        "endTime": "01:21.903"
       },
       {
         "id": "secondHalf",
         "label": "Andra halvlek",
         "type": "regular",
-        "startTime": "51:00",
-        "endTime": "96:00",
+        "startTime": "01:21.903",
+        "endTime": "02:34.170",
         "clockStart": 45,
         "clockEnd": 90
       },
@@ -49,8 +49,8 @@
         "id": "secondHalfAddedTime",
         "label": "Tilläggstid, andra halvlek",
         "type": "added-time",
-        "startTime": "96:00",
-        "endTime": "101:00",
+        "startTime": "02:34.170",
+        "endTime": "02:42.200",
         "clockStart": 90,
         "clockEnd": 95
       },
@@ -58,8 +58,8 @@
         "id": "fullTime",
         "label": "Slut",
         "type": "full-time",
-        "startTime": "101:00",
-        "endTime": "101:00"
+        "startTime": "02:42.200",
+        "endTime": "02:42.200"
       }
     ],
     "teams": [
@@ -69,8 +69,7 @@
         "shortName": "Malmö",
         "abbreviation": "MAL",
         "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2720.png",
-        "color": "#5699eb",
-        "score": 1
+        "color": "#5699eb"
       },
       {
         "id": "2495",
@@ -78,47 +77,130 @@
         "shortName": "Hammarby",
         "abbreviation": "HAM",
         "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2495.png",
-        "color": "#ffcc00",
-        "score": 2
+        "color": "#ffcc00"
       }
     ],
     "popups": [
-      {"text": "Mål!!", "position": "north", "timeStart": "10:00", "timeEnd": "12:00"},
-      {"text": "Heja Malmö!", "position": "south", "timeStart": "16:00", "timeEnd": "18:00"},
-      {"text": "Stort tryck!", "position": "south", "timeStart": "27:00", "timeEnd": "29:00"},
-      {"text": "Straff!", "position": "north", "timeStart": "40:00", "timeEnd": "42:00"},
-      {"text": "Halvtidsvisselpipa", "position": "north", "timeStart": "45:00", "timeEnd": "47:00"},
-      {"text": "Nära mål!", "position": "south", "timeStart": "69:00", "timeEnd": "71:00"},
-      {"text": "Vilken räddning!", "position": "north", "timeStart": "77:00", "timeEnd": "79:00"},
-      {"text": "Slutspurt!", "position": "north", "timeStart": "87:00", "timeEnd": "89:00"}
+      {
+        "text": "Mål!!",
+        "position": "north",
+        "timeStart": "00:16.059",
+        "timeEnd": "00:19.271"
+      },
+      {
+        "text": "Heja Malmö!",
+        "position": "south",
+        "timeStart": "00:25.695",
+        "timeEnd": "00:28.907"
+      },
+      {
+        "text": "Stort tryck!",
+        "position": "south",
+        "timeStart": "00:43.360",
+        "timeEnd": "00:46.572"
+      },
+      {
+        "text": "Straff!",
+        "position": "north",
+        "timeStart": "01:04.238",
+        "timeEnd": "01:07.450"
+      },
+      {
+        "text": "Halvtidsvisselpipa",
+        "position": "north",
+        "timeStart": "01:12.267",
+        "timeEnd": "01:15.479"
+      },
+      {
+        "text": "Nära mål!",
+        "position": "south",
+        "timeStart": "01:50.810",
+        "timeEnd": "01:54.022"
+      },
+      {
+        "text": "Vilken räddning!",
+        "position": "north",
+        "timeStart": "02:03.657",
+        "timeEnd": "02:06.869"
+      },
+      {
+        "text": "Slutspurt!",
+        "position": "north",
+        "timeStart": "02:19.717",
+        "timeEnd": "02:22.929"
+      }
     ],
     "events": [
       {
-        "startTime": "08:00",
-        "endTime": "09:00",
+        "startTime": "00:12.848",
+        "endTime": "00:14.453",
         "label": "Moment 1"
       },
       {
-        "startTime": "26:00",
-        "endTime": "27:00",
+        "startTime": "00:41.754",
+        "endTime": "00:43.360",
         "label": "Moment 2"
       },
       {
-        "startTime": "44:00",
-        "endTime": "45:00",
+        "startTime": "01:10.661",
+        "endTime": "01:12.267",
         "label": "Moment 3"
       },
       {
-        "startTime": "68:00",
-        "endTime": "69:00",
+        "startTime": "01:49.204",
+        "endTime": "01:50.810",
         "label": "Moment 4"
       },
       {
-        "startTime": "86:00",
-        "endTime": "87:00",
+        "startTime": "02:18.111",
+        "endTime": "02:19.717",
         "label": "Moment 5"
       }
+    ],
+    "incidents": [
+      {
+        "type": "goal",
+        "time": "00:16.059",
+        "teamId": "2720",
+        "label": "Mål"
+      },
+      {
+        "type": "yellow-card",
+        "time": "00:40.149",
+        "label": "Gult kort"
+      },
+      {
+        "type": "goal",
+        "time": "01:04.238",
+        "teamId": "2495",
+        "label": "Mål"
+      },
+      {
+        "type": "substitution",
+        "time": "01:36.356",
+        "label": "Byte"
+      },
+      {
+        "type": "goal",
+        "time": "01:50.810",
+        "teamId": "2495",
+        "label": "Mål"
+      },
+      {
+        "type": "red-card",
+        "time": "02:08.475",
+        "label": "Rött kort"
+      },
+      {
+        "type": "substitution",
+        "time": "02:24.535",
+        "label": "Byte"
+      }
     ]
+  },
+  "playbackAudioUrl": "",
+  "ambience": {
+    "startTime": "02:33:38"
   },
   "stands": {
     "west": {
@@ -129,28 +211,40 @@
         34
       ],
       "emitterSpacingMeters": 4,
-      "audioUrl": "/sound/soundEffects.mp3",
-      "color": "#ff4444",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/7.ogg",
+      "color": "#a89a8f",
       "footprint": [
         [
-          12.986921272,
-          55.584160073
+          12.986963015,
+          55.58343613
         ],
         [
-          12.987302721,
-          55.584160073
+          12.987463679,
+          55.58427226
         ],
         [
-          12.987302721,
-          55.583171927
+          12.987102364,
+          55.584341374
         ],
         [
-          12.986921272,
-          55.583171927
+          12.9866017,
+          55.583505244
         ]
-      ]
+      ],
+      "marker": true,
+      "markerInsetMeters": 1.5,
+      "markerWidthMeters": 9,
+      "markerHeightRangeMeters": [
+        2.5,
+        25
+      ],
+      "colors": [
+        "#a89a8f",
+        "#c4b8ae"
+      ],
+      "markerOpacity": 0.75
     },
-    "north": {
+    "southWest": {
       "lengthMeters": 70,
       "depthMeters": 24,
       "heightRangeMeters": [
@@ -159,15 +253,59 @@
       ],
       "emitterSpacingMeters": 4,
       "marker": true,
-      "markerInsetMeters": 5,
-      "markerWidthMeters": 8.5,
+      "markerInsetMeters": 1.5,
+      "markerWidthMeters": 9,
       "markerHeightRangeMeters": [
-        1,
-        15.5
+        2.5,
+        25
       ],
-      "audioUrl": "/sound/soundEffects.mp3",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
+      "color": "#00a651",
+      "colors": [
+        "#00a651",
+        "#ffffff"
+      ],
+      "footprint": [
+        [
+          12.986837849,
+          55.583227097
+        ],
+        [
+          12.986956757,
+          55.583425678
+        ],
+        [
+          12.986595442,
+          55.583494792
+        ],
+        [
+          12.986476534,
+          55.583296211
+        ]
+      ],
+      "group": "hammarby"
+    },
+    "north": {
+      "lengthMeters": 80,
+      "depthMeters": 240,
+      "heightRangeMeters": [
+        24,
+        34
+      ],
+      "emitterSpacingMeters": 4,
+      "marker": true,
+      "markerInsetMeters": 3.5,
+      "markerWidthMeters": 12,
+      "markerHeightRangeMeters": [
+        1.5,
+        19
+      ],
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/18.ogg",
       "color": "#5bb8f0",
-      "colors": ["#5bb8f0", "#ffffff"],
+      "colors": [
+        "#5bb8f0",
+        "#ffffff"
+      ],
       "footprint": [
         [
           12.987584118,
@@ -195,26 +333,38 @@
         34
       ],
       "emitterSpacingMeters": 4,
-      "audioUrl": "/sound/soundEffects.mp3",
-      "color": "#44ff44",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/14.ogg",
+      "color": "#a89a8f",
       "footprint": [
         [
-          12.988415279,
-          55.584160073
+          12.987895954,
+          55.583023535
         ],
         [
-          12.988796728,
-          55.584160073
+          12.988533084,
+          55.584072998
         ],
         [
-          12.988796728,
-          55.583171927
+          12.988893882,
+          55.584003024
         ],
         [
-          12.988415279,
-          55.583171927
+          12.988256752,
+          55.582953561
         ]
-      ]
+      ],
+      "marker": true,
+      "markerInsetMeters": 9,
+      "markerWidthMeters": 10,
+      "markerHeightRangeMeters": [
+        1,
+        15.5
+      ],
+      "colors": [
+        "#a89a8f",
+        "#c4b8ae"
+      ],
+      "markerOpacity": 0.75
     },
     "south": {
       "lengthMeters": 70,
@@ -231,27 +381,73 @@
         4,
         18.5
       ],
-      "audioUrl": "/sound/soundEffects.mp3",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
       "color": "#00a651",
-      "colors": ["#00a651", "#ffffff"],
+      "colors": [
+        "#00a651",
+        "#ffffff"
+      ],
       "footprint": [
         [
-          12.986958288,
-          55.583204059
+          12.986847355,
+          55.583225393
         ],
         [
-          12.987775688,
-          55.583046859
+          12.987644437,
+          55.583072101
         ],
         [
-          12.987653554,
-          55.582841237
+          12.987522303,
+          55.582866479
         ],
         [
-          12.986836154,
-          55.582998437
+          12.986725221,
+          55.583019771
         ]
-      ]
+      ],
+      "group": "hammarby"
+    },
+    "southGeneric": {
+      "lengthMeters": 70,
+      "depthMeters": 24,
+      "heightRangeMeters": [
+        24,
+        34
+      ],
+      "emitterSpacingMeters": 4,
+      "marker": true,
+      "markerInsetMeters": 0.5,
+      "markerWidthMeters": 8.5,
+      "markerHeightRangeMeters": [
+        4,
+        18.5
+      ],
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
+      "color": "#a89a8f",
+      "colors": [
+        "#a89a8f",
+        "#c4b8ae"
+      ],
+      "footprint": [
+        [
+          12.987658917,
+          55.583069316
+        ],
+        [
+          12.988020908,
+          55.582999699
+        ],
+        [
+          12.987898774,
+          55.582794077
+        ],
+        [
+          12.987536783,
+          55.582863694
+        ]
+      ],
+      "markerOpacity": 0.75,
+      "stripeWidthMeters": 8.8
     }
   }
 }
