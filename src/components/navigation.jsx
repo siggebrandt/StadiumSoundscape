@@ -1,45 +1,55 @@
+import selectedIcon from "../assets/vector/selected.svg";
+import unselectedIcon from "../assets/vector/unSelected.svg";
+import "./navigation.css";
+
 const ARENA_LIST = [
-  { id: "ullevi", label: "GAMLA ULLEVI" },
-  { id: "eleda", label: "ELEDA STADION" },
+  { id: "ullevi", label: "Gamla Ullevi", city: "Göteborg" },
+  { id: "eleda", label: "Eleda Stadion", city: "Malmö" },
 ];
 
-export default function Navigation({ activeArena, onSelectArena }) {
+export default function Navigation({ activeArena, onSelectArena, listeningMode, onSelectMode }) {
   return (
-    <div
-      className="navigation"
-      style={{
-        position: "absolute",
-        top: "50%",
-        left: "20px",
-        zIndex: "2",
-      }}
-    >
-      <div
-        style={{
-          transform: "translateY(-50%)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px",
-        }}
-      >
-        {ARENA_LIST.map(({ id, label }) => {
+    <nav className="navigation" aria-label="Välj arena">
+      <div className="navigation__list">
+        {ARENA_LIST.map(({ id, label, city }) => {
           const isActive = activeArena === id;
           return (
-            <div
+            <button
               key={id}
+              type="button"
+              className={`navigation__arena${isActive ? " navigation__arena--active" : ""}`}
+              aria-pressed={isActive}
               onClick={() => onSelectArena(id)}
-              style={{
-                color: isActive ? "#2563eb" : "#000",
-                fontWeight: isActive ? "700" : "400",
-                cursor: "pointer",
-                transition: "color 0.15s ease, font-weight 0.15s ease",
-              }}
             >
-              {label}
-            </div>
+              <img
+                className="navigation__indicator"
+                src={isActive ? selectedIcon : unselectedIcon}
+                alt=""
+              />
+              <span className="navigation__details">
+                <span className="navigation__name">{label}</span>
+                <span className="navigation__city">{city}</span>
+              </span>
+            </button>
           );
         })}
       </div>
-    </div>
+      <div className="navigation__modes" role="group" aria-label="Välj ljudläge">
+        {[
+          { id: "match", label: "Match" },
+          { id: "ambience", label: "Ambience" },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            className={`navigation__mode${listeningMode === id ? " navigation__mode--active" : ""}`}
+            aria-pressed={listeningMode === id}
+            onClick={() => onSelectMode(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </nav>
   );
 }

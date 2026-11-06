@@ -1,14 +1,16 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Map, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import ullevi from "../assets/json/ullevi.json";
 import eleda from "../assets/json/eleda.json";
+import ulleviWaveform from "../assets/json/ullevi-waveform.json";
 
 import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
 import Navigation from "../components/navigation";
 import GameStatsSlider from "../components/gameStatsSlider";
+import { getMatchStart, parsePlaybackTime } from "../components/matchTimeline";
 
 const ARENAS = {
   ullevi,
@@ -23,17 +25,21 @@ export default function StadiumMap() {
   const mapRef = useRef(null);
   const activeArenaKeyRef = useRef("ullevi");
   const [activeArenaKey, setActiveArenaKey] = useState("ullevi");
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [transitioningName, setTransitioningName] = useState("");
+  const [listeningMode, setListeningMode] = useState("match");
+  const hasLoadedRef = useRef(false);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const [transitioningName, setTransitioningName] = useState(
+    ullevi.location.name,
+  );
   const [playback, setPlayback] = useState({
-    currentTime: 0,
+    currentTime: getMatchStart(ullevi.match),
     duration: 0,
     mode: "paused",
   });
   const audioControlsRef = useRef(null);
   const playbackActionRef = useRef(0);
-
   const activeArena = ARENAS[activeArenaKey];
+  const playbackAudioUrl = activeArena.playbackAudioUrl;
   const mapPanning = mapBoxControls(mapRef);
 
   const handleAudioStateChange = useCallback(
@@ -53,7 +59,7 @@ export default function StadiumMap() {
     playbackActionRef.current += 1;
     setPlayback((previous) => ({
       ...previous,
-      currentTime: previous.duration,
+      currentTime: audioControlsRef.current?.getCurrentTime() ?? previous.currentTime,
       mode: "paused",
     }));
   }, [activeArenaKey]);
@@ -68,15 +74,20 @@ export default function StadiumMap() {
   );
 
   const handleSeek = (time) => {
-    audioControlsRef.current?.seekAll(time);
-    setPlayback((previous) => ({ ...previous, currentTime: time }));
+    const start = listeningMode === "match"
+      ? getMatchStart(activeArena.match)
+      : parsePlaybackTime(activeArena.ambience?.startTime);
+    if (start === null) return;
+    const target = Math.max(time, start);
+    audioControlsRef.current?.seekAll(target);
+    setPlayback((previous) => ({ ...previous, currentTime: target }));
   };
 
   const handleTogglePlayback = () => {
     const controls = audioControlsRef.current;
     if (!controls) return;
 
-    if (playback.mode === "all") {
+    if (playback.mode !== "paused") {
       playbackActionRef.current += 1;
       controls.pauseAll();
       setPlayback((previous) => ({
@@ -87,25 +98,79 @@ export default function StadiumMap() {
       return;
     }
 
+    const start = listeningMode === "ambience"
+      ? parsePlaybackTime(activeArena.ambience?.startTime)
+      : getMatchStart(activeArena.match);
+    if (start === null || start >= playback.duration) return;
+    if (controls.getCurrentTime() < start || controls.getCurrentTime() >= playback.duration) {
+      controls.seekAll(start);
+    }
+
     const requestId = ++playbackActionRef.current;
     controls.playAll().then((results) => {
       if (requestId === playbackActionRef.current) {
         const started = results.some((result) => result.status === "fulfilled");
         if (!started) {
+          for (const result of results) {
+            if (result.status === "rejected") {
+              console.error("Kunde inte spela upp huvudljudet:", result.reason);
+            }
+          }
           setPlayback((previous) => ({ ...previous, mode: "paused" }));
         }
       }
     });
   };
 
+  const handleSelectMode = (mode) => {
+    if (mode === listeningMode || isTransitioning) return;
+    const start = mode === "ambience"
+      ? parsePlaybackTime(activeArena.ambience?.startTime)
+      : getMatchStart(activeArena.match);
+    playbackActionRef.current += 1;
+    audioControlsRef.current?.pauseAll();
+    if (start !== null) audioControlsRef.current?.seekAll(start);
+    setPlayback((previous) => ({
+      ...previous,
+      currentTime: start ?? 0,
+      mode: "paused",
+    }));
+    setListeningMode(mode);
+  };
+
+  const ambienceStart = parsePlaybackTime(activeArena.ambience?.startTime);
+  const matchStart = getMatchStart(activeArena.match);
+  const canPlayStand =
+    listeningMode === "match" ||
+    (ambienceStart !== null && playback.duration > ambienceStart);
+
+  const prepareStandPlayback = () => {
+    const start = listeningMode === "ambience" ? ambienceStart : matchStart;
+    if (start === null) return;
+    const time = audioControlsRef.current?.getCurrentTime();
+    if (time < start || (playback.duration > 0 && time >= playback.duration)) {
+      audioControlsRef.current?.seekAll(start);
+    }
+  };
+
+  // Säkerhetsnät så laddningsskärmen aldrig fastnar om kartan aldrig blir idle.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      hasLoadedRef.current = true;
+      setIsTransitioning(false);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleSelectArena = (arenaKey) => {
     if (arenaKey === activeArenaKey || isTransitioning) return;
 
     activeArenaKeyRef.current = arenaKey;
+    setListeningMode("match");
     playbackActionRef.current += 1;
     audioControlsRef.current?.pauseAll();
-    setPlayback({ currentTime: 0, duration: 0, mode: "paused" });
     const targetArena = ARENAS[arenaKey];
+    setPlayback({ currentTime: getMatchStart(targetArena.match), duration: 0, mode: "paused" });
     setTransitioningName(targetArena.location.name);
     setIsTransitioning(true);
 
@@ -145,13 +210,21 @@ export default function StadiumMap() {
   return (
     <>
       <GameStatsSlider
-        key={activeArenaKey}
+        key={`${activeArenaKey}-${listeningMode}`}
         currentTime={playback.currentTime}
         duration={playback.duration}
         playbackMode={playback.mode}
         match={activeArena.match}
+        listeningMode={listeningMode}
+        waveform={activeArenaKey === "ullevi" ? ulleviWaveform : null}
+        ambienceStart={ambienceStart}
+        matchStart={matchStart}
+        hasPlaybackAudio={Boolean(playbackAudioUrl)}
         onSeek={handleSeek}
         onTogglePlayback={handleTogglePlayback}
+        getStandScreenPoint={(side) =>
+          audioControlsRef.current?.getStandScreenPoint(side) ?? null
+        }
       />
       {/* Filmisk övergångs-overlay */}
       <div
@@ -212,14 +285,21 @@ export default function StadiumMap() {
       <Navigation
         activeArena={activeArenaKey}
         onSelectArena={handleSelectArena}
+        listeningMode={listeningMode}
+        onSelectMode={handleSelectMode}
       />
-
       <div
         style={{ width: "100%", height: "100vh", touchAction: "none" }}
         {...mapPanning}
       >
         <Map
           ref={mapRef}
+          onIdle={() => {
+            if (!hasLoadedRef.current) {
+              hasLoadedRef.current = true;
+              setIsTransitioning(false);
+            }
+          }}
           dragPan={false}
           dragRotate={false}
           doubleClickZoom={false}
@@ -242,6 +322,7 @@ export default function StadiumMap() {
           }}
           style={{ width: "100%", height: "100vh" }}
           mapStyle={apiUrl1}
+          projection={{ name: "mercator" }}
           maxPitch={85}
           terrain={{
             source: "mapbox-dem",
@@ -285,13 +366,14 @@ export default function StadiumMap() {
             }}
           />
           <RenderObject
-            spots={activeArena.microphones}
-            boundaryMarginMeters={activeArena.particleBoundaryMarginMeters}
-            soundDirectory={activeArenaKey === "ullevi" ? "ullevi" : undefined}
+            stands={activeArena.stands}
+            playbackAudioUrl={playbackAudioUrl}
             onAudioStateChange={handleAudioStateChange}
             onPlaybackModeChange={handlePlaybackModeChange}
             onPlaybackEnded={handlePlaybackEnded}
             controlsRef={audioControlsRef}
+            canPlayStand={canPlayStand}
+            onBeforeStandPlayback={prepareStandPlayback}
           />
         </Map>
       </div>
