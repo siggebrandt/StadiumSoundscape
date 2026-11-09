@@ -70,7 +70,7 @@
         "name": "Malmö FF",
         "shortName": "Malmö",
         "abbreviation": "MAL",
-        "logo": "src/assets/vector/mff.svg",
+        "logo": "/vector/mff.svg",
         "color": "#5699eb"
       },
       {
@@ -78,7 +78,7 @@
         "name": "Hammarby IF",
         "shortName": "Hammarby",
         "abbreviation": "HAM",
-        "logo": "src/assets/vector/hammarby.svg",
+        "logo": "/vector/hammarby.svg",
         "color": "#ffcc00"
       }
     ],

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 124 124" fill="none">
+  <clipPath id="mask-hammarby">
+    <circle cx="62" cy="62" r="62" />
+  </clipPath>
+  
+  <g clip-path="url(#mask-hammarby)">
+    <!-- Bajen Grön -->
+    <rect width="124" height="124" fill="#006633" />
+    
+    <!-- Vit -->
+    <polygon points="0,124 124,0 124,124" fill="#FFFFFF" />
+  </g>
+</svg>

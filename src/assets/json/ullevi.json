@@ -70,7 +70,7 @@
         "name": "GAIS",
         "shortName": "GAIS",
         "abbreviation": "GAIS",
-        "logo": "src/assets/vector/gais.svg",
+        "logo": "/vector/gais.svg",
         "color": "#009d58"
       },
       {
@@ -78,7 +78,7 @@
         "name": "IFK Göteborg",
         "shortName": "Göteborg",
         "abbreviation": "GOT",
-        "logo": "src/assets/vector/ifk.svg",
+        "logo": "/vector/ifk.svg",
         "color": "#fabd00"
       }
     ],
