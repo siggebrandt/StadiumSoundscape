@@ -1,10 +1,14 @@
 import * as THREE from "three";
 
 export default function createCrowd(vertices, colors) {
-  const corners = Array.from({ length: 4 }, (_, i) =>
-    new THREE.Vector3(...vertices.slice(i * 3, i * 3 + 3)),
+  const corners = Array.from(
+    { length: 4 },
+    (_, i) => new THREE.Vector3(...vertices.slice(i * 3, i * 3 + 3)),
   );
-  const columns = Math.max(1, Math.ceil(corners[0].distanceTo(corners[1]) / 1.8));
+  const columns = Math.max(
+    1,
+    Math.ceil(corners[0].distanceTo(corners[1]) / 1.8),
+  );
   const rows = Math.max(1, Math.ceil(corners[0].distanceTo(corners[3]) / 1.8));
   const count = columns * rows;
   const positions = new Float32Array(count * 3);
@@ -20,7 +24,8 @@ export default function createCrowd(vertices, colors) {
       const outer = corners[3].clone().lerp(corners[2], along);
       const point = inner.lerp(outer, across);
       positions.set([point.x, point.y, point.z + 0.4], index * 3);
-      const hash = Math.abs(Math.sin(column * 12.9898 + row * 78.233) * 43758.5453) % 1;
+      const hash =
+        Math.abs(Math.sin(column * 12.9898 + row * 78.233) * 43758.5453) % 1;
       seeds[index] = hash;
       const color = palette[Math.floor(hash * 997) % palette.length];
       colorsArray.set([color.r, color.g, color.b], index * 3);
@@ -88,7 +93,8 @@ export default function createCrowd(vertices, colors) {
   return {
     points,
     update(time, energy, active = true) {
-      const dt = lastTime === null ? 0 : Math.min(Math.max(time - lastTime, 0), 0.1);
+      const dt =
+        lastTime === null ? 0 : Math.min(Math.max(time - lastTime, 0), 0.1);
       lastTime = time;
       if (!active) return;
       clock += dt;

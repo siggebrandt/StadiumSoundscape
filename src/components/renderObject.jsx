@@ -14,8 +14,7 @@ function createMarkerData(stand, corners, center, standPosition) {
     const next = corners[(edgeIndex + 1) % corners.length];
     const midpointX = (corner.x + next.x) / 2;
     const midpointY = (corner.y + next.y) / 2;
-    const distance =
-      (center.x - midpointX) ** 2 + (center.y - midpointY) ** 2;
+    const distance = (center.x - midpointX) ** 2 + (center.y - midpointY) ** 2;
     if (distance < closestEdgeDistance) {
       innerEdge = edgeIndex;
       closestEdgeDistance = distance;
@@ -36,9 +35,7 @@ function createMarkerData(stand, corners, center, standPosition) {
   ).normalize();
   const inset = stand.markerInsetMeters ?? 8;
   const width = stand.markerWidthMeters ?? 4;
-  const [minHeight, maxHeight] =
-    stand.markerHeightRangeMeters ??
-    [4, 12];
+  const [minHeight, maxHeight] = stand.markerHeightRangeMeters ?? [4, 12];
   const standDepth = Math.max(
     2 *
       Math.hypot(
@@ -48,7 +45,8 @@ function createMarkerData(stand, corners, center, standPosition) {
     1,
   );
   const heightPerMeter = (maxHeight - minHeight) / standDepth;
-  const innerZ = minHeight + heightPerMeter * inset - standPosition.height + 0.5;
+  const innerZ =
+    minHeight + heightPerMeter * inset - standPosition.height + 0.5;
   const outerZ = innerZ + heightPerMeter * width;
   const markerVertices = [
     [start.x + inward.x * inset, start.y + inward.y * inset, innerZ],
@@ -78,8 +76,7 @@ function createMarkerData(stand, corners, center, standPosition) {
     for (let row = 0; row < widthDivisions; row++) {
       const across = (row + 0.5) / widthDivisions;
       const distanceFromInnerEdge = inset + width * across;
-      const height =
-        minHeight + heightPerMeter * distanceFromInnerEdge;
+      const height = minHeight + heightPerMeter * distanceFromInnerEdge;
       emitters.push({
         colorIndex: Math.floor(along * stripeCount) % 2,
         x:
@@ -101,12 +98,7 @@ function createMarkerData(stand, corners, center, standPosition) {
   return { markerVertices, emitters, stripeCount };
 }
 
-function createStandEmitters(
-  stands,
-  origin,
-  meterScale,
-  standPositions,
-) {
+function createStandEmitters(stands, origin, meterScale, standPositions) {
   const center = standPositions.reduce(
     (sum, point) => ({
       x: sum.x + point.x / standPositions.length,
@@ -133,7 +125,10 @@ function createStandEmitters(
       }),
       { x: 0, y: 0 },
     );
-    const inward = new THREE.Vector2(center.x - sideCenter.x, center.y - sideCenter.y).normalize();
+    const inward = new THREE.Vector2(
+      center.x - sideCenter.x,
+      center.y - sideCenter.y,
+    ).normalize();
     const alongLength = Math.hypot(
       corners[1].x - corners[0].x,
       corners[1].y - corners[0].y,
@@ -143,10 +138,7 @@ function createStandEmitters(
       corners[2].y - corners[1].y,
     );
     const spacing = stand.emitterSpacingMeters ?? 4;
-    const alongDivisions = Math.max(
-      1,
-      Math.ceil(alongLength / spacing),
-    );
+    const alongDivisions = Math.max(1, Math.ceil(alongLength / spacing));
     const depthDivisions = Math.max(1, Math.ceil(depth / spacing));
     const heightRange = stand.heightRangeMeters ?? [2, 10];
     const emitters = [];
@@ -178,12 +170,7 @@ function createStandEmitters(
       }
     }
     const markerData = stand.marker
-      ? createMarkerData(
-          stand,
-          corners,
-          center,
-          standPositions[index],
-        )
+      ? createMarkerData(stand, corners, center, standPositions[index])
       : null;
     return {
       emitters: markerData?.emitters ?? emitters,
@@ -206,13 +193,14 @@ function createLayer({
 }) {
   const list = Object.entries(stands ?? {})
     .map(([id, stand]) => ({ ...stand, id }))
-    .filter((stand) => Array.isArray(stand.footprint) && stand.footprint.length === 4)
+    .filter(
+      (stand) => Array.isArray(stand.footprint) && stand.footprint.length === 4,
+    )
     .map((stand) => {
-      const [longitude, latitude] = stand.footprint
-        .reduce(
-          (sum, point) => [sum[0] + point[0] / 4, sum[1] + point[1] / 4],
-          [0, 0],
-        );
+      const [longitude, latitude] = stand.footprint.reduce(
+        (sum, point) => [sum[0] + point[0] / 4, sum[1] + point[1] / 4],
+        [0, 0],
+      );
       return { ...stand, longitude, latitude };
     });
   if (!list.length) throw new Error("No valid stand areas are configured.");
@@ -262,14 +250,19 @@ function createLayer({
 
   function notifyAudioState() {
     onAudioStateChange(
-      Math.max(...soundFlows.map((flow) => flow.getDuration()), playbackFlow?.getDuration() ?? 0),
+      Math.max(
+        ...soundFlows.map((flow) => flow.getDuration()),
+        playbackFlow?.getDuration() ?? 0,
+      ),
       getCurrentTime(),
     );
   }
 
   function getCurrentTime() {
-    const playingFlows = [...soundFlows, ...(playbackFlow ? [playbackFlow] : [])]
-      .filter((flow) => flow.isPlaying());
+    const playingFlows = [
+      ...soundFlows,
+      ...(playbackFlow ? [playbackFlow] : []),
+    ].filter((flow) => flow.isPlaying());
     if (playingFlows.length) {
       timelinePosition = Math.max(
         ...playingFlows.map((flow) => flow.getCurrentTime()),
@@ -375,7 +368,12 @@ function createLayer({
     playAll() {
       const request = ++playbackSequence;
       if (!playbackFlow) {
-        return Promise.resolve([{ status: "rejected", reason: new Error("No playback audio URL configured.") }]);
+        return Promise.resolve([
+          {
+            status: "rejected",
+            reason: new Error("No playback audio URL configured."),
+          },
+        ]);
       }
       const duration = playbackFlow.getDuration();
       const startTime =
@@ -480,29 +478,6 @@ function createLayer({
     },
 
     getCurrentTime,
-
-    // Skärmposition (CSS-pixlar) för mitten av en markering, eller null om den inte syns.
-    getStandScreenPoint(standId) {
-      const index = list.findIndex((stand) => stand.id === standId);
-      const flow = soundFlows[index];
-      if (!flow?.hasMarker) return null;
-      const { width, height } = map.getCanvas().getBoundingClientRect();
-      const positions = flow.hit.geometry.getAttribute("position");
-      let x = 0;
-      let y = 0;
-      for (let vertex = 0; vertex < positions.count; vertex++) {
-        const clip = new THREE.Vector4(
-          positions.getX(vertex),
-          positions.getY(vertex),
-          positions.getZ(vertex) + flow.group.position.z,
-          1,
-        ).applyMatrix4(camera.projectionMatrix);
-        if (clip.w <= 0) return null;
-        x += ((clip.x / clip.w + 1) * width) / 2;
-        y += ((1 - clip.y / clip.w) * height) / 2;
-      }
-      return { x: x / positions.count, y: y / positions.count };
-    },
 
     // Vilket ljudflöde ligger under skärmpunkten? (point i CSS-pixlar)
     pick(point) {
@@ -617,7 +592,9 @@ export default function RenderObject({
     const onMove = (e) => {
       if (!layer) return;
       map.getCanvas().style.cursor =
-        standPlaybackRef.current.canPlayStand && layer.pick(e.point) ? "pointer" : "";
+        standPlaybackRef.current.canPlayStand && layer.pick(e.point)
+          ? "pointer"
+          : "";
     };
 
     // isStyleLoaded() är false medan plattor laddas, så vänta inte bara på style.load.

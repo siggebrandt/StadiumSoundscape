@@ -59,7 +59,8 @@ export default function StadiumMap() {
     playbackActionRef.current += 1;
     setPlayback((previous) => ({
       ...previous,
-      currentTime: audioControlsRef.current?.getCurrentTime() ?? previous.currentTime,
+      currentTime:
+        audioControlsRef.current?.getCurrentTime() ?? previous.currentTime,
       mode: "paused",
     }));
   }, [activeArenaKey]);
@@ -74,9 +75,10 @@ export default function StadiumMap() {
   );
 
   const handleSeek = (time) => {
-    const start = listeningMode === "match"
-      ? getMatchStart(activeArena.match)
-      : parsePlaybackTime(activeArena.ambience?.startTime);
+    const start =
+      listeningMode === "match"
+        ? getMatchStart(activeArena.match)
+        : parsePlaybackTime(activeArena.ambience?.startTime);
     if (start === null) return;
     const target = Math.max(time, start);
     audioControlsRef.current?.seekAll(target);
@@ -98,11 +100,15 @@ export default function StadiumMap() {
       return;
     }
 
-    const start = listeningMode === "ambience"
-      ? parsePlaybackTime(activeArena.ambience?.startTime)
-      : getMatchStart(activeArena.match);
+    const start =
+      listeningMode === "ambience"
+        ? parsePlaybackTime(activeArena.ambience?.startTime)
+        : getMatchStart(activeArena.match);
     if (start === null || start >= playback.duration) return;
-    if (controls.getCurrentTime() < start || controls.getCurrentTime() >= playback.duration) {
+    if (
+      controls.getCurrentTime() < start ||
+      controls.getCurrentTime() >= playback.duration
+    ) {
       controls.seekAll(start);
     }
 
@@ -124,9 +130,10 @@ export default function StadiumMap() {
 
   const handleSelectMode = (mode) => {
     if (mode === listeningMode || isTransitioning) return;
-    const start = mode === "ambience"
-      ? parsePlaybackTime(activeArena.ambience?.startTime)
-      : getMatchStart(activeArena.match);
+    const start =
+      mode === "ambience"
+        ? parsePlaybackTime(activeArena.ambience?.startTime)
+        : getMatchStart(activeArena.match);
     playbackActionRef.current += 1;
     audioControlsRef.current?.pauseAll();
     if (start !== null) audioControlsRef.current?.seekAll(start);
@@ -170,7 +177,11 @@ export default function StadiumMap() {
     playbackActionRef.current += 1;
     audioControlsRef.current?.pauseAll();
     const targetArena = ARENAS[arenaKey];
-    setPlayback({ currentTime: getMatchStart(targetArena.match), duration: 0, mode: "paused" });
+    setPlayback({
+      currentTime: getMatchStart(targetArena.match),
+      duration: 0,
+      mode: "paused",
+    });
     setTransitioningName(targetArena.location.name);
     setIsTransitioning(true);
 
@@ -222,9 +233,6 @@ export default function StadiumMap() {
         hasPlaybackAudio={Boolean(playbackAudioUrl)}
         onSeek={handleSeek}
         onTogglePlayback={handleTogglePlayback}
-        getStandScreenPoint={(side) =>
-          audioControlsRef.current?.getStandScreenPoint(side) ?? null
-        }
       />
       {/* Filmisk övergångs-overlay */}
       <div

@@ -80,56 +80,6 @@
         "color": "#ffcc00"
       }
     ],
-    "popups": [
-      {
-        "text": "Mål!!",
-        "position": "north",
-        "timeStart": "00:16.059",
-        "timeEnd": "00:19.271"
-      },
-      {
-        "text": "Heja Malmö!",
-        "position": "south",
-        "timeStart": "00:25.695",
-        "timeEnd": "00:28.907"
-      },
-      {
-        "text": "Stort tryck!",
-        "position": "south",
-        "timeStart": "00:43.360",
-        "timeEnd": "00:46.572"
-      },
-      {
-        "text": "Straff!",
-        "position": "north",
-        "timeStart": "01:04.238",
-        "timeEnd": "01:07.450"
-      },
-      {
-        "text": "Halvtidsvisselpipa",
-        "position": "north",
-        "timeStart": "01:12.267",
-        "timeEnd": "01:15.479"
-      },
-      {
-        "text": "Nära mål!",
-        "position": "south",
-        "timeStart": "01:50.810",
-        "timeEnd": "01:54.022"
-      },
-      {
-        "text": "Vilken räddning!",
-        "position": "north",
-        "timeStart": "02:03.657",
-        "timeEnd": "02:06.869"
-      },
-      {
-        "text": "Slutspurt!",
-        "position": "north",
-        "timeStart": "02:19.717",
-        "timeEnd": "02:22.929"
-      }
-    ],
     "events": [
       {
         "startTime": "00:12.848",
@@ -198,7 +148,7 @@
       }
     ]
   },
-  "playbackAudioUrl": "",
+  "playbackAudioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/everything.ogg",
   "ambience": {
     "startTime": "02:33:38"
   },
@@ -206,263 +156,125 @@
     "west": {
       "lengthMeters": 110,
       "depthMeters": 24,
-      "heightRangeMeters": [
-        24,
-        34
-      ],
+      "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
       "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/7.ogg",
       "color": "#a89a8f",
       "footprint": [
-        [
-          12.986963015,
-          55.58343613
-        ],
-        [
-          12.987463679,
-          55.58427226
-        ],
-        [
-          12.987102364,
-          55.584341374
-        ],
-        [
-          12.9866017,
-          55.583505244
-        ]
+        [12.986963015, 55.58343613],
+        [12.987463679, 55.58427226],
+        [12.987102364, 55.584341374],
+        [12.9866017, 55.583505244]
       ],
       "marker": true,
       "markerInsetMeters": 1.5,
       "markerWidthMeters": 9,
-      "markerHeightRangeMeters": [
-        2.5,
-        25
-      ],
-      "colors": [
-        "#a89a8f",
-        "#c4b8ae"
-      ],
+      "markerHeightRangeMeters": [2.5, 25],
+      "colors": ["#a89a8f", "#c4b8ae"],
       "markerOpacity": 0.75,
-      "crowdColors": [
-        "#00a651",
-        "#ffffff",
-        "#5bb8f0"
-      ]
+      "crowdColors": ["#00a651", "#ffffff", "#5bb8f0"]
     },
     "southWest": {
       "lengthMeters": 70,
       "depthMeters": 24,
-      "heightRangeMeters": [
-        24,
-        34
-      ],
+      "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
       "marker": true,
       "markerInsetMeters": 1.5,
       "markerWidthMeters": 9,
-      "markerHeightRangeMeters": [
-        2.5,
-        25
-      ],
+      "markerHeightRangeMeters": [2.5, 25],
       "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
       "color": "#00a651",
-      "colors": [
-        "#00a651",
-        "#ffffff"
-      ],
+      "colors": ["#00a651", "#ffffff"],
       "footprint": [
-        [
-          12.986837849,
-          55.583227097
-        ],
-        [
-          12.986956757,
-          55.583425678
-        ],
-        [
-          12.986595442,
-          55.583494792
-        ],
-        [
-          12.986476534,
-          55.583296211
-        ]
+        [12.986837849, 55.583227097],
+        [12.986956757, 55.583425678],
+        [12.986595442, 55.583494792],
+        [12.986476534, 55.583296211]
       ],
       "group": "hammarby"
     },
     "north": {
       "lengthMeters": 80,
       "depthMeters": 240,
-      "heightRangeMeters": [
-        24,
-        34
-      ],
+      "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
       "marker": true,
       "markerInsetMeters": 3.5,
       "markerWidthMeters": 12,
-      "markerHeightRangeMeters": [
-        1.5,
-        19
-      ],
+      "markerHeightRangeMeters": [1.5, 19],
       "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/18.ogg",
       "color": "#5bb8f0",
-      "colors": [
-        "#5bb8f0",
-        "#ffffff"
-      ],
+      "colors": ["#5bb8f0", "#ffffff"],
       "footprint": [
-        [
-          12.987584118,
-          55.584249222
-        ],
-        [
-          12.988412818,
-          55.584096322
-        ],
-        [
-          12.988530473,
-          55.584302789
-        ],
-        [
-          12.987701773,
-          55.584455689
-        ]
+        [12.987584118, 55.584249222],
+        [12.988412818, 55.584096322],
+        [12.988530473, 55.584302789],
+        [12.987701773, 55.584455689]
       ]
     },
     "east": {
       "lengthMeters": 110,
       "depthMeters": 24,
-      "heightRangeMeters": [
-        24,
-        34
-      ],
+      "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
       "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/14.ogg",
       "color": "#a89a8f",
       "footprint": [
-        [
-          12.987895954,
-          55.583023535
-        ],
-        [
-          12.988533084,
-          55.584072998
-        ],
-        [
-          12.988893882,
-          55.584003024
-        ],
-        [
-          12.988256752,
-          55.582953561
-        ]
+        [12.987895954, 55.583023535],
+        [12.988533084, 55.584072998],
+        [12.988893882, 55.584003024],
+        [12.988256752, 55.582953561]
       ],
       "marker": true,
       "markerInsetMeters": 9,
       "markerWidthMeters": 10,
-      "markerHeightRangeMeters": [
-        1,
-        15.5
-      ],
-      "colors": [
-        "#a89a8f",
-        "#c4b8ae"
-      ],
+      "markerHeightRangeMeters": [1, 15.5],
+      "colors": ["#a89a8f", "#c4b8ae"],
       "markerOpacity": 0.75,
-      "crowdColors": [
-        "#00a651",
-        "#ffffff",
-        "#5bb8f0"
-      ]
+      "crowdColors": ["#00a651", "#ffffff", "#5bb8f0"]
     },
     "south": {
       "lengthMeters": 70,
       "depthMeters": 24,
-      "heightRangeMeters": [
-        24,
-        34
-      ],
+      "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
       "marker": true,
       "markerInsetMeters": 0.5,
       "markerWidthMeters": 8.5,
-      "markerHeightRangeMeters": [
-        4,
-        18.5
-      ],
+      "markerHeightRangeMeters": [4, 18.5],
       "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
       "color": "#00a651",
-      "colors": [
-        "#00a651",
-        "#ffffff"
-      ],
+      "colors": ["#00a651", "#ffffff"],
       "footprint": [
-        [
-          12.986847355,
-          55.583225393
-        ],
-        [
-          12.987644437,
-          55.583072101
-        ],
-        [
-          12.987522303,
-          55.582866479
-        ],
-        [
-          12.986725221,
-          55.583019771
-        ]
+        [12.986847355, 55.583225393],
+        [12.987644437, 55.583072101],
+        [12.987522303, 55.582866479],
+        [12.986725221, 55.583019771]
       ],
       "group": "hammarby"
     },
     "southGeneric": {
       "lengthMeters": 70,
       "depthMeters": 24,
-      "heightRangeMeters": [
-        24,
-        34
-      ],
+      "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
       "marker": true,
       "markerInsetMeters": 0.5,
       "markerWidthMeters": 8.5,
-      "markerHeightRangeMeters": [
-        4,
-        18.5
-      ],
+      "markerHeightRangeMeters": [4, 18.5],
       "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
       "color": "#a89a8f",
-      "colors": [
-        "#a89a8f",
-        "#c4b8ae"
-      ],
+      "colors": ["#a89a8f", "#c4b8ae"],
       "footprint": [
-        [
-          12.987658917,
-          55.583069316
-        ],
-        [
-          12.988020908,
-          55.582999699
-        ],
-        [
-          12.987898774,
-          55.582794077
-        ],
-        [
-          12.987536783,
-          55.582863694
-        ]
+        [12.987658917, 55.583069316],
+        [12.988020908, 55.582999699],
+        [12.987898774, 55.582794077],
+        [12.987536783, 55.582863694]
       ],
       "markerOpacity": 0.75,
       "stripeWidthMeters": 8.8,
-      "crowdColors": [
-        "#00a651",
-        "#ffffff",
-        "#5bb8f0"
-      ]
+      "crowdColors": ["#00a651", "#ffffff", "#5bb8f0"]
     }
   }
 }

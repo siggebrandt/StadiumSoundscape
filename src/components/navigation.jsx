@@ -7,7 +7,12 @@ const ARENA_LIST = [
   { id: "eleda", label: "Eleda Stadion", city: "Malmö" },
 ];
 
-export default function Navigation({ activeArena, onSelectArena, listeningMode, onSelectMode }) {
+export default function Navigation({
+  activeArena,
+  onSelectArena,
+  listeningMode,
+  onSelectMode,
+}) {
   return (
     <nav className="navigation" aria-label="Välj arena">
       <div className="navigation__list">
@@ -34,7 +39,11 @@ export default function Navigation({ activeArena, onSelectArena, listeningMode, 
           );
         })}
       </div>
-      <div className="navigation__modes" role="group" aria-label="Välj ljudläge">
+      <div
+        className="navigation__modes"
+        role="group"
+        aria-label="Välj ljudläge"
+      >
         {[
           { id: "match", label: "Match" },
           { id: "ambience", label: "Ambience" },

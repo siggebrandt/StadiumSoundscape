@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import MomentPopups from "./momentPopups";
 import Waveform from "./waveform";
 import {
   assignLabelLanes,
@@ -17,7 +16,10 @@ const POST_MATCH_SECONDS = 15;
 
 function getTimePosition(time, duration, start = 0) {
   if (duration <= start) return 0;
-  return Math.min(Math.max(((time - start) / (duration - start)) * 100, 0), 100);
+  return Math.min(
+    Math.max(((time - start) / (duration - start)) * 100, 0),
+    100,
+  );
 }
 
 function formatAudioTime(time) {
@@ -33,26 +35,66 @@ function IncidentIcon({ type }) {
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="10" cy="10" r="6.4" fill="#f7f8fb" />
           <path d="m10 6.3 2.3 1.7-.9 2.7H8.6L7.7 8z" fill="#17212b" />
-          <path d="M10 6.3V4m2.3 4 2.2-.7m-3.1 3.4 1.4 1.9m-4.2-1.9-1.4 1.9M7.7 8l-2.2-.7" fill="none" stroke="#17212b" strokeWidth="1" strokeLinecap="round" />
+          <path
+            d="M10 6.3V4m2.3 4 2.2-.7m-3.1 3.4 1.4 1.9m-4.2-1.9-1.4 1.9M7.7 8l-2.2-.7"
+            fill="none"
+            stroke="#17212b"
+            strokeWidth="1"
+            strokeLinecap="round"
+          />
         </svg>
       );
     case "yellow-card":
       return (
         <svg viewBox="0 0 20 20" aria-hidden="true">
-          <rect x="6.3" y="4.2" width="7.4" height="11.6" rx="1.1" fill="#f6ce48" stroke="#fff1b1" strokeWidth=".8" transform="rotate(10 10 10)" />
+          <rect
+            x="6.3"
+            y="4.2"
+            width="7.4"
+            height="11.6"
+            rx="1.1"
+            fill="#f6ce48"
+            stroke="#fff1b1"
+            strokeWidth=".8"
+            transform="rotate(10 10 10)"
+          />
         </svg>
       );
     case "red-card":
       return (
         <svg viewBox="0 0 20 20" aria-hidden="true">
-          <rect x="6.3" y="4.2" width="7.4" height="11.6" rx="1.1" fill="#ef5a5a" stroke="#ffc2be" strokeWidth=".8" transform="rotate(10 10 10)" />
+          <rect
+            x="6.3"
+            y="4.2"
+            width="7.4"
+            height="11.6"
+            rx="1.1"
+            fill="#ef5a5a"
+            stroke="#ffc2be"
+            strokeWidth=".8"
+            transform="rotate(10 10 10)"
+          />
         </svg>
       );
     case "substitution":
       return (
         <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="M4.5 7h10m-3-3 3 3-3 3" fill="none" stroke="#65ddb1" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M15.5 13h-10m3 3-3-3 3-3" fill="none" stroke="#f18585" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M4.5 7h10m-3-3 3 3-3 3"
+            fill="none"
+            stroke="#65ddb1"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M15.5 13h-10m3 3-3-3 3-3"
+            fill="none"
+            stroke="#f18585"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       );
     default:
@@ -72,7 +114,6 @@ export default function GameStatsSlider({
   hasPlaybackAudio,
   onSeek,
   onTogglePlayback,
-  getStandScreenPoint,
 }) {
   const [draftTime, setDraftTime] = useState(currentTime);
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -88,10 +129,13 @@ export default function GameStatsSlider({
     return () => observer.disconnect();
   });
   const matchSegments = getTimelineSegments(match);
-  const fullTimeStart = matchSegments.find((segment) => segment.type === "full-time")?.start;
-  const duration = listeningMode === "match" && fullTimeStart != null
-    ? Math.min(audioDuration, fullTimeStart + POST_MATCH_SECONDS)
-    : audioDuration;
+  const fullTimeStart = matchSegments.find(
+    (segment) => segment.type === "full-time",
+  )?.start;
+  const duration =
+    listeningMode === "match" && fullTimeStart != null
+      ? Math.min(audioDuration, fullTimeStart + POST_MATCH_SECONDS)
+      : audioDuration;
   const timelineStart = listeningMode === "match" ? matchStart : 0;
   const displayTime = Math.min(
     Math.max(isScrubbing ? draftTime : currentTime, timelineStart),
@@ -117,9 +161,7 @@ export default function GameStatsSlider({
   const incidents = (match.incidents ?? [])
     .map((incident) => {
       const time = parsePlaybackTime(incident.time);
-      return time === null
-        ? null
-        : { ...incident, mediaTime: time };
+      return time === null ? null : { ...incident, mediaTime: time };
     })
     .filter((incident) => incident && incident.mediaTime >= timelineStart);
 
@@ -128,9 +170,13 @@ export default function GameStatsSlider({
     for (const incident of match.incidents ?? []) {
       if (
         incident.type === "goal" &&
-        (parsePlaybackTime(incident.time) === null || !teamIds.has(incident.teamId))
+        (parsePlaybackTime(incident.time) === null ||
+          !teamIds.has(incident.teamId))
       ) {
-        console.error("Invalid goal incident: expected an audio timestamp and a matching teamId.", incident);
+        console.error(
+          "Invalid goal incident: expected an audio timestamp and a matching teamId.",
+          incident,
+        );
       }
     }
   }, [match]);
@@ -138,36 +184,31 @@ export default function GameStatsSlider({
   const TIMELINE_PX = timelinePx;
   const eventLanes = assignLabelLanes(
     events.map((event) => {
-      const center = (getTimePosition(event.mediaStart, duration, timelineStart) / 100) * TIMELINE_PX;
+      const center =
+        (getTimePosition(event.mediaStart, duration, timelineStart) / 100) *
+        TIMELINE_PX;
       const half = ((event.shortLabel ?? event.label).length * 6 + 8) / 2;
       return { left: center - half, right: center + half };
     }),
     3,
   );
   const incidentOffsets = spreadPositions(
-    incidents.map((incident) => (getTimePosition(incident.mediaTime, duration, timelineStart) / 100) * TIMELINE_PX),
+    incidents.map(
+      (incident) =>
+        (getTimePosition(incident.mediaTime, duration, timelineStart) / 100) *
+        TIMELINE_PX,
+    ),
     20,
   );
   const scores = getMatchScores(match.teams, incidents, displayTime);
 
-  const popups = (match.popups ?? [])
-    .map((popup, index) => {
-      const start = parsePlaybackTime(popup.timeStart);
-      const end = parsePlaybackTime(popup.timeEnd);
-      return start === null || end === null || end <= start
-        ? null
-        : {
-            ...popup,
-            id: `${index}-${popup.timeStart}-${popup.position}`,
-            mediaStart: start,
-            mediaEnd: end,
-          };
-    })
-    .filter(Boolean);
-
   const seek = (value) => {
-    const lowerBound = listeningMode === "match" ? Math.min(matchStart, duration) : 0;
-    const time = Math.min(Math.max(Number(value), lowerBound), Math.max(duration, 0));
+    const lowerBound =
+      listeningMode === "match" ? Math.min(matchStart, duration) : 0;
+    const time = Math.min(
+      Math.max(Number(value), lowerBound),
+      Math.max(duration, 0),
+    );
     setDraftTime(time);
     onSeek(time);
   };
@@ -194,8 +235,14 @@ export default function GameStatsSlider({
             type="button"
             onClick={onTogglePlayback}
             disabled={!canTogglePlayback || !available}
-            title={!hasPlaybackAudio && playbackMode === "paused" ? "Add an audio file for the play button" : undefined}
-            aria-label={playbackMode !== "paused" ? "Pause audio" : "Play audio"}
+            title={
+              !hasPlaybackAudio && playbackMode === "paused"
+                ? "Add an audio file for the play button"
+                : undefined
+            }
+            aria-label={
+              playbackMode !== "paused" ? "Pause audio" : "Play audio"
+            }
           >
             {playbackMode !== "paused" ? (
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -207,7 +254,10 @@ export default function GameStatsSlider({
               </svg>
             )}
           </button>
-          <section className="audio-player audio-player--ambience" aria-label="Ambience audio">
+          <section
+            className="audio-player audio-player--ambience"
+            aria-label="Ambience audio"
+          >
             <div className="audio-player__ambience-heading">
               <span>Ambience</span>
               <span>
@@ -227,7 +277,9 @@ export default function GameStatsSlider({
                 />
                 <div
                   className="audio-timeline__track"
-                  style={{ "--timeline-progress": `${getTimePosition(ambienceTime, ambienceDuration)}%` }}
+                  style={{
+                    "--timeline-progress": `${getTimePosition(ambienceTime, ambienceDuration)}%`,
+                  }}
                 />
                 <input
                   aria-label="Seek ambience audio"
@@ -246,7 +298,9 @@ export default function GameStatsSlider({
                   onKeyUp={() => setIsScrubbing(false)}
                   onPointerUp={() => setIsScrubbing(false)}
                   onPointerCancel={() => setIsScrubbing(false)}
-                  onChange={(event) => seek(ambienceStart + Number(event.target.value))}
+                  onChange={(event) =>
+                    seek(ambienceStart + Number(event.target.value))
+                  }
                   className="audio-timeline__range"
                 />
               </div>
@@ -281,23 +335,18 @@ export default function GameStatsSlider({
         </div>
       </header>
 
-      <MomentPopups
-        popups={popups}
-        currentTime={currentTime}
-        playbackMode={playbackMode}
-        getStandScreenPoint={getStandScreenPoint}
-      />
-
       <div className="audio-controls">
         <button
           className="audio-player__button"
           type="button"
           onClick={onTogglePlayback}
           disabled={!canTogglePlayback}
-          title={!hasPlaybackAudio && playbackMode === "paused" ? "Add an audio file for the play button" : undefined}
-          aria-label={
-            playbackMode !== "paused" ? "Pause audio" : "Play audio"
+          title={
+            !hasPlaybackAudio && playbackMode === "paused"
+              ? "Add an audio file for the play button"
+              : undefined
           }
+          aria-label={playbackMode !== "paused" ? "Pause audio" : "Play audio"}
         >
           {playbackMode !== "paused" ? (
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -336,9 +385,14 @@ export default function GameStatsSlider({
                     if (segment.end <= segment.start) return null;
                     const startPosition = getTimePosition(
                       segment.start,
-                      duration, timelineStart,
+                      duration,
+                      timelineStart,
                     );
-                    const endPosition = getTimePosition(segment.end, duration, timelineStart);
+                    const endPosition = getTimePosition(
+                      segment.end,
+                      duration,
+                      timelineStart,
+                    );
                     return (
                       <span
                         className="audio-timeline__added-time"
@@ -361,9 +415,14 @@ export default function GameStatsSlider({
                     if (segment.end <= segment.start) return null;
                     const startPosition = getTimePosition(
                       segment.start,
-                      duration, timelineStart,
+                      duration,
+                      timelineStart,
                     );
-                    const endPosition = getTimePosition(segment.end, duration, timelineStart);
+                    const endPosition = getTimePosition(
+                      segment.end,
+                      duration,
+                      timelineStart,
+                    );
                     return (
                       <span
                         className="audio-timeline__halftime"
@@ -374,7 +433,9 @@ export default function GameStatsSlider({
                           width: `${endPosition - startPosition}%`,
                         }}
                       >
-                        <span className="audio-timeline__halftime-label">HT</span>
+                        <span className="audio-timeline__halftime-label">
+                          HT
+                        </span>
                       </span>
                     );
                   })}
@@ -416,8 +477,16 @@ export default function GameStatsSlider({
                   const lane = eventLanes[eventIndex];
                   const mediaStart = event.mediaStart;
                   const mediaEnd = event.mediaEnd;
-                  const startPosition = getTimePosition(mediaStart, duration, timelineStart);
-                  const endPosition = getTimePosition(mediaEnd, duration, timelineStart);
+                  const startPosition = getTimePosition(
+                    mediaStart,
+                    duration,
+                    timelineStart,
+                  );
+                  const endPosition = getTimePosition(
+                    mediaEnd,
+                    duration,
+                    timelineStart,
+                  );
                   return (
                     <span
                       key={`${event.startTime}-${event.endTime}-${event.label}`}
@@ -480,7 +549,10 @@ export default function GameStatsSlider({
                   min={Math.min(matchStart, Math.max(duration, 0))}
                   max={Math.max(duration, 0)}
                   step={0.1}
-                  value={Math.min(Math.max(displayTime, matchStart), Math.max(duration, 0))}
+                  value={Math.min(
+                    Math.max(displayTime, matchStart),
+                    Math.max(duration, 0),
+                  )}
                   disabled={duration <= matchStart}
                   onBlur={() => setIsScrubbing(false)}
                   onPointerDown={() => {

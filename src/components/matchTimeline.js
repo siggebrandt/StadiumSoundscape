@@ -1,8 +1,13 @@
 export function parsePlaybackTime(value) {
-  const match = /^(?:(\d+):([0-5]\d)|(\d+)):([0-5]\d(?:\.\d+)?)$/.exec(String(value));
+  const match = /^(?:(\d+):([0-5]\d)|(\d+)):([0-5]\d(?:\.\d+)?)$/.exec(
+    String(value),
+  );
   if (!match) return null;
-  return Number(match[1] ?? 0) * 3600 +
-    Number(match[2] ?? match[3]) * 60 + Number(match[4]);
+  return (
+    Number(match[1] ?? 0) * 3600 +
+    Number(match[2] ?? match[3]) * 60 +
+    Number(match[4])
+  );
 }
 
 export function getMatchScores(teams, incidents, time) {
@@ -64,8 +69,8 @@ export function formatMatchMinute(time, segments) {
     segmentDuration > 0
       ? Math.min(Math.max((time - segment.start) / segmentDuration, 0), 1)
       : 0;
-  const matchMinute = segment.clockStart +
-    progress * (segment.clockEnd - segment.clockStart);
+  const matchMinute =
+    segment.clockStart + progress * (segment.clockEnd - segment.clockStart);
 
   if (segment.type === "added-time") {
     return `${segment.clockStart}+${Math.floor(matchMinute - segment.clockStart)}'`;
@@ -80,9 +85,23 @@ export function getTimelineTicks(segments) {
   const fullTime = segments.find((segment) => segment.type === "full-time");
 
   return [
-    firstHalf && { time: firstHalf.start, label: `${firstHalf.clockStart}'`, kind: "major" },
-    firstHalf && firstHalf.end !== halftime?.start && { time: firstHalf.end, label: `${firstHalf.clockEnd}'`, kind: "major" },
-    secondHalf && secondHalf.end !== fullTime?.start && { time: secondHalf.end, label: `${secondHalf.clockEnd}'`, kind: "major" },
+    firstHalf && {
+      time: firstHalf.start,
+      label: `${firstHalf.clockStart}'`,
+      kind: "major",
+    },
+    firstHalf &&
+      firstHalf.end !== halftime?.start && {
+        time: firstHalf.end,
+        label: `${firstHalf.clockEnd}'`,
+        kind: "major",
+      },
+    secondHalf &&
+      secondHalf.end !== fullTime?.start && {
+        time: secondHalf.end,
+        label: `${secondHalf.clockEnd}'`,
+        kind: "major",
+      },
     fullTime && { time: fullTime.start, label: "FT", kind: "major" },
   ].filter((tick) => tick && tick.time !== null && tick.time >= 0);
 }
@@ -94,7 +113,11 @@ export function getMinuteTicks(segments) {
     .forEach((segment) => {
       const span = segment.clockEnd - segment.clockStart;
       if (span <= 0) return;
-      for (let minute = segment.clockStart + 1; minute < segment.clockEnd; minute++) {
+      for (
+        let minute = segment.clockStart + 1;
+        minute < segment.clockEnd;
+        minute++
+      ) {
         const progress = (minute - segment.clockStart) / span;
         let kind = "minute";
         let label = null;
@@ -132,7 +155,8 @@ export function assignLabelLanes(items, laneCount, gap = 6) {
 
 // Nudges markers sideways so they keep at least minGap between their centres.
 export function spreadPositions(positions, minGap) {
-  const order = positions.map((position, index) => ({ position, index }))
+  const order = positions
+    .map((position, index) => ({ position, index }))
     .sort((a, b) => a.position - b.position);
   const result = order.map(({ position }) => position);
   for (let pass = 0; pass < 4; pass++) {
@@ -145,6 +169,8 @@ export function spreadPositions(positions, minGap) {
     }
   }
   const output = new Array(positions.length);
-  order.forEach(({ index }, i) => { output[index] = result[i]; });
+  order.forEach(({ index }, i) => {
+    output[index] = result[i];
+  });
   return output;
 }

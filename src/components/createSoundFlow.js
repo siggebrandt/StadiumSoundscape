@@ -250,7 +250,10 @@ export default function createSoundFlow({
   }
   group.add(points, hit);
   const crowd = markerVertices
-    ? createCrowd(markerVertices, crowdColors?.length ? crowdColors : (colors?.length ? colors : [color]))
+    ? createCrowd(
+        markerVertices,
+        crowdColors?.length ? crowdColors : colors?.length ? colors : [color],
+      )
     : null;
   if (crowd) group.add(crowd.points);
 
@@ -396,7 +399,10 @@ export default function createSoundFlow({
     flow.emitterX[index] = source.x;
     flow.emitterY[index] = source.y;
     flow.emitterZ[index] =
-      source.heightOffset + Math.random() ** 1.5 * (3 + Math.min(energy, 1) * 12) + pitch * 3 + features.centroid * 6;
+      source.heightOffset +
+      Math.random() ** 1.5 * (3 + Math.min(energy, 1) * 12) +
+      pitch * 3 +
+      features.centroid * 6;
     flow.directionX[index] = source.directionX;
     flow.directionY[index] = source.directionY;
     flow.normalX[index] = -source.directionY;
@@ -404,13 +410,22 @@ export default function createSoundFlow({
     flow.ages[index] = 0;
     flow.opacities[index] = 0;
     flow.colorIndex[index] = source.colorIndex ?? 0;
-    flow.lifetimes[index] = WAVE_LIFETIME * (0.35 + Math.min(energy, 1) * 0.9 + Math.random() * 0.9) * (1.6 - pitch * 0.5);
+    flow.lifetimes[index] =
+      WAVE_LIFETIME *
+      (0.35 + Math.min(energy, 1) * 0.9 + Math.random() * 0.9) *
+      (1.6 - pitch * 0.5);
     flow.birthEnergy[index] = energy;
-    flow.lateralOffsets[index] = (Math.random() - 0.5) * (1.4 + Math.min(energy, 1) * 2.4);
+    flow.lateralOffsets[index] =
+      (Math.random() - 0.5) * (1.4 + Math.min(energy, 1) * 2.4);
     flow.forwardOffsets[index] = (Math.random() - 0.5) * 1.2;
     flow.intensityOffsets[index] = 0.65 + Math.random() * 0.35;
-    flow.baseSizes[index] = (6 + Math.random() * 3 + Math.min(energy, 1) * 4) * (1.2 - pitch * 0.5);
-    flow.speeds[index] = SOUND_SPEED * (0.8 + Math.random() * 0.7 + pitch * 0.4) * (0.85 + features.centroid * 0.5) * (1 + burst * 0.5);
+    flow.baseSizes[index] =
+      (6 + Math.random() * 3 + Math.min(energy, 1) * 4) * (1.2 - pitch * 0.5);
+    flow.speeds[index] =
+      SOUND_SPEED *
+      (0.8 + Math.random() * 0.7 + pitch * 0.4) *
+      (0.85 + features.centroid * 0.5) *
+      (1 + burst * 0.5);
     flow.turbulence[index] = 0.5 + features.flatness * 2;
     flow.wobblePhases[index] = Math.random() * Math.PI * 2;
     flow.wobbleRates[index] = 1 + pitch * 2.5 + Math.random();
@@ -421,12 +436,24 @@ export default function createSoundFlow({
     const sources = flow.sourcePositions;
     const gain = (0.35 + features.loudness * 2.2) * (1 + burst * 1.2);
     for (let i = 0; i < sources.length; i++) {
-      const band = Math.min(BAND_COUNT - 1, Math.floor(i / sources.length * BAND_COUNT));
-      const level = Math.min(1, Math.max(features.bands[band], features.absolute * 0.3));
+      const band = Math.min(
+        BAND_COUNT - 1,
+        Math.floor((i / sources.length) * BAND_COUNT),
+      );
+      const level = Math.min(
+        1,
+        Math.max(features.bands[band], features.absolute * 0.3),
+      );
       const spawn = (level * level * 3 + level * 0.6) * gain;
       let amount = Math.floor(spawn) + (Math.random() < spawn % 1 ? 1 : 0);
       while (amount-- > 0) {
-        emitParticle(nextParticleIndex, sources[i], Math.min(1, level + burst * 0.25), band, burst);
+        emitParticle(
+          nextParticleIndex,
+          sources[i],
+          Math.min(1, level + burst * 0.25),
+          band,
+          burst,
+        );
         nextParticleIndex = (nextParticleIndex + 1) % PARTICLE_COUNT;
       }
     }
@@ -434,9 +461,7 @@ export default function createSoundFlow({
 
   function update(timeSeconds) {
     const deltaTime =
-      lastUpdateTime === null
-        ? 0
-        : Math.max(0, timeSeconds - lastUpdateTime);
+      lastUpdateTime === null ? 0 : Math.max(0, timeSeconds - lastUpdateTime);
     lastUpdateTime = timeSeconds;
 
     const activeAnalyser = sharedAnalysis?.analyser ?? analyser;
@@ -447,7 +472,10 @@ export default function createSoundFlow({
     features = extractor ? extractor.analyze(deltaTime) : EMPTY_FEATURES;
 
     const canEmit = Boolean(markerVertices) && (playing || emissionEnabled);
-    const energy = Math.min(1, features.loudness * 0.55 + features.absolute * 0.55);
+    const energy = Math.min(
+      1,
+      features.loudness * 0.55 + features.absolute * 0.55,
+    );
     crowd?.update(timeSeconds, energy, playing || emissionEnabled);
     timeSinceWave += deltaTime;
     const positions = geometry.attributes.position.array;
@@ -473,17 +501,28 @@ export default function createSoundFlow({
       }
 
       const age = flow.ages[i];
-      const distance = flow.speeds[i] * age * (1 - 0.45 * progress) + flow.forwardOffsets[i];
+      const distance =
+        flow.speeds[i] * age * (1 - 0.45 * progress) + flow.forwardOffsets[i];
       const wobble = Math.sin(age * flow.wobbleRates[i] + flow.wobblePhases[i]);
       const width =
         flow.lateralOffsets[i] * (1 + progress * 0.7) +
-        wobble * (0.3 + flow.birthEnergy[i] * 0.8) * flow.turbulence[i] * progress +
-        Math.sin(progress * Math.PI * (0.8 + flow.bandMix[i] * 1.4) + flow.wobblePhases[i]) *
-          (2 + flow.birthEnergy[i] * 5) * Math.sin(progress * Math.PI);
+        wobble *
+          (0.3 + flow.birthEnergy[i] * 0.8) *
+          flow.turbulence[i] *
+          progress +
+        Math.sin(
+          progress * Math.PI * (0.8 + flow.bandMix[i] * 1.4) +
+            flow.wobblePhases[i],
+        ) *
+          (2 + flow.birthEnergy[i] * 5) *
+          Math.sin(progress * Math.PI);
       const archHeight =
-        (1 + flow.birthEnergy[i] * 8) * Math.sin(progress * Math.PI) + progress * flow.bandMix[i] * 4 +
+        (1 + flow.birthEnergy[i] * 8) * Math.sin(progress * Math.PI) +
+        progress * flow.bandMix[i] * 4 +
         Math.cos(age * flow.wobbleRates[i] * 0.8 + flow.wobblePhases[i]) *
-          flow.birthEnergy[i] * 0.6 * progress;
+          flow.birthEnergy[i] *
+          0.6 *
+          progress;
       const fadeIn = Math.min(progress * 10, 1);
       const fadeOut = (1 - progress) ** 1.3;
       const intensity =
@@ -503,7 +542,10 @@ export default function createSoundFlow({
       positions[index + 2] = flow.emitterZ[i] + archHeight;
 
       const particleColor = teamColors[flow.colorIndex[i] % teamColors.length];
-      const shine = Math.min(1, flow.bandMix[i] * flow.birthEnergy[i] * 0.6 + features.centroid * 0.15);
+      const shine = Math.min(
+        1,
+        flow.bandMix[i] * flow.birthEnergy[i] * 0.6 + features.centroid * 0.15,
+      );
       colors[index] = particleColor.r + (1 - particleColor.r) * shine;
       colors[index + 1] = particleColor.g + (1 - particleColor.g) * shine;
       colors[index + 2] = particleColor.b + (1 - particleColor.b) * shine;
