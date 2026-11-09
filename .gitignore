@@ -28,3 +28,4 @@ dist-ssr
 .codegraphy/*
 .filequest-tasks.json
 /public/sound/
+/tests
