@@ -9,7 +9,9 @@
   },
   "match": {
     "competition": "Allsvenskan 2026",
-    "sourceUrl": "https://www.espn.co.uk/football/match/_/gameId/401842857/ifk-goteborg-gais",
+    "date": "2026-10-25",
+    "attendance": 16522,
+    "sourceUrl": "https://fotbollplay.se/game/5125",
     "timelineSegments": [
       {
         "id": "firstHalf",
@@ -27,7 +29,7 @@
         "startTime": "01:15:28",
         "endTime": "01:20:41",
         "clockStart": 45,
-        "clockEnd": 50
+        "clockEnd": 50.2167
       },
       {
         "id": "halftime",
@@ -52,7 +54,7 @@
         "startTime": "02:20:58",
         "endTime": "02:24:32",
         "clockStart": 90,
-        "clockEnd": 94
+        "clockEnd": 93.5667
       },
       {
         "id": "fullTime",
@@ -68,7 +70,7 @@
         "name": "GAIS",
         "shortName": "GAIS",
         "abbreviation": "GAIS",
-        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/8222.png",
+        "logo": "src/assets/vector/gais.svg",
         "color": "#009d58"
       },
       {
@@ -76,28 +78,28 @@
         "name": "IFK Göteborg",
         "shortName": "Göteborg",
         "abbreviation": "GOT",
-        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2556.png",
+        "logo": "src/assets/vector/ifk.svg",
         "color": "#fabd00"
       }
     ],
     "events": [
       {
-        "startTime": "00:59:49",
-        "endTime": "00:59:49",
-        "label": "Foul",
-        "shortLabel": "Foul"
+        "startTime": "00:30:28",
+        "endTime": "00:30:28",
+        "label": "Kickoff",
+        "shortLabel": "Kickoff"
       },
       {
         "startTime": "00:59:53",
         "endTime": "00:59:53",
         "label": "Penalty confirmed",
-        "shortLabel": "Pen"
+        "shortLabel": "Penalty"
       },
       {
-        "startTime": "01:00:09",
-        "endTime": "01:00:09",
-        "label": "GAIS fan, mic 10",
-        "shortLabel": "GAIS fan"
+        "startTime": "01:01:33",
+        "endTime": "01:01:33",
+        "label": "GAIS goal",
+        "shortLabel": "GAIS goal"
       },
       {
         "startTime": "01:20:30",
@@ -108,20 +110,26 @@
       {
         "startTime": "02:02:15",
         "endTime": "02:02:15",
-        "label": "IFK chance",
+        "label": "Chance for IFK",
         "shortLabel": "IFK chance"
       },
       {
-        "startTime": "02:10:11",
-        "endTime": "02:10:51",
-        "label": "GAIS sub no. 9",
-        "shortLabel": "Sub"
+        "startTime": "02:02:30",
+        "endTime": "02:02:30",
+        "label": "IFK goal",
+        "shortLabel": "IFK goal"
       },
       {
         "startTime": "02:10:56",
         "endTime": "02:11:23",
         "label": "GAIS chant",
         "shortLabel": "Chant"
+      },
+      {
+        "startTime": "02:24:22",
+        "endTime": "02:24:32",
+        "label": "Full-time",
+        "shortLabel": "Fulltime"
       }
     ],
     "incidents": [
@@ -148,12 +156,6 @@
         "time": "02:02:30",
         "teamId": "2556",
         "label": "IFK goal"
-      },
-      {
-        "type": "substitution",
-        "time": "02:10:11",
-        "teamId": "8222",
-        "label": "GAIS sub no. 9"
       }
     ]
   },

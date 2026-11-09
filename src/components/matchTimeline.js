@@ -49,6 +49,12 @@ export function getMatchStart(match) {
   return firstHalf.start;
 }
 
+export function getMatchEnd(match) {
+  const segments = getTimelineSegments(match);
+  const fullTime = segments.find((segment) => segment.type === "full-time");
+  return fullTime ? fullTime.start : null;
+}
+
 export function formatMatchMinute(time, segments) {
   const halftime = segments.find((segment) => segment.type === "halftime");
   if (halftime && time >= halftime.start && time < halftime.end) return "HT";
@@ -76,6 +82,31 @@ export function formatMatchMinute(time, segments) {
     return `${segment.clockStart}+${Math.floor(matchMinute - segment.clockStart)}'`;
   }
   return `${Math.floor(matchMinute)}'`;
+}
+
+export function getMatchClock(time, segments) {
+  const label = formatMatchMinute(time, segments);
+  if (label === "HT" || label === "FT" || label === "—") return { label };
+
+  const segment = segments.find(
+    (item) =>
+      ["regular", "added-time"].includes(item.type) &&
+      time >= item.start &&
+      time < item.end,
+  );
+  const duration = segment.end - segment.start;
+  const progress =
+    duration > 0 ? Math.min(Math.max((time - segment.start) / duration, 0), 1) : 0;
+  const elapsed = Math.floor(
+    progress * (segment.clockEnd - segment.clockStart) * 60,
+  );
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+
+  if (segment.type === "added-time") {
+    return { minutes: `${segment.clockStart}+${minutes}`, seconds };
+  }
+  return { minutes: segment.clockStart + minutes, seconds };
 }
 
 export function getTimelineTicks(segments) {

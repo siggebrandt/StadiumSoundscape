@@ -10,7 +10,7 @@ import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
 import Navigation from "../components/navigation";
 import GameStatsSlider from "../components/gameStatsSlider";
-import { getMatchStart, parsePlaybackTime } from "../components/matchTimeline";
+import { getMatchStart, getMatchEnd, parsePlaybackTime } from "../components/matchTimeline";
 
 const ARENAS = {
   ullevi,
@@ -26,6 +26,8 @@ export default function StadiumMap() {
   const activeArenaKeyRef = useRef("ullevi");
   const [activeArenaKey, setActiveArenaKey] = useState("ullevi");
   const [listeningMode, setListeningMode] = useState("match");
+  const listeningModeRef = useRef("match");
+  const playbackModeRef = useRef("paused");
   const hasLoadedRef = useRef(false);
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [transitioningName, setTransitioningName] = useState(
@@ -45,17 +47,37 @@ export default function StadiumMap() {
   const handleAudioStateChange = useCallback(
     (duration, currentTime) => {
       if (activeArenaKeyRef.current !== activeArenaKey) return;
+      if (
+        listeningModeRef.current === "match" &&
+        playbackModeRef.current !== "paused"
+      ) {
+        const matchEnd = getMatchEnd(activeArena.match);
+        if (matchEnd !== null && currentTime >= matchEnd) {
+          playbackModeRef.current = "paused";
+          playbackActionRef.current += 1;
+          audioControlsRef.current?.pauseAll();
+          audioControlsRef.current?.seekAll(matchEnd);
+          setPlayback((previous) => ({
+            ...previous,
+            duration,
+            currentTime: matchEnd,
+            mode: "paused",
+          }));
+          return;
+        }
+      }
       setPlayback((previous) => ({
         ...previous,
         duration,
         currentTime,
       }));
     },
-    [activeArenaKey],
+    [activeArenaKey, activeArena.match],
   );
 
   const handlePlaybackEnded = useCallback(() => {
     if (activeArenaKeyRef.current !== activeArenaKey) return;
+    playbackModeRef.current = "paused";
     playbackActionRef.current += 1;
     setPlayback((previous) => ({
       ...previous,
@@ -67,6 +89,7 @@ export default function StadiumMap() {
 
   const handlePlaybackModeChange = useCallback(
     (mode) => {
+      playbackModeRef.current = mode;
       if (activeArenaKeyRef.current !== activeArenaKey) return;
       if (mode === "solo") playbackActionRef.current += 1;
       setPlayback((previous) => ({ ...previous, mode }));
@@ -80,7 +103,13 @@ export default function StadiumMap() {
         ? getMatchStart(activeArena.match)
         : parsePlaybackTime(activeArena.ambience?.startTime);
     if (start === null) return;
-    const target = Math.max(time, start);
+    const matchEnd =
+      listeningMode === "match" ? getMatchEnd(activeArena.match) : null;
+    const maxTime = matchEnd !== null ? matchEnd : playback.duration;
+    const target = Math.min(
+      Math.max(time, start),
+      maxTime > 0 ? maxTime : Infinity,
+    );
     audioControlsRef.current?.seekAll(target);
     setPlayback((previous) => ({ ...previous, currentTime: target }));
   };
@@ -90,6 +119,7 @@ export default function StadiumMap() {
     if (!controls) return;
 
     if (playback.mode !== "paused") {
+      playbackModeRef.current = "paused";
       playbackActionRef.current += 1;
       controls.pauseAll();
       setPlayback((previous) => ({
@@ -104,15 +134,19 @@ export default function StadiumMap() {
       listeningMode === "ambience"
         ? parsePlaybackTime(activeArena.ambience?.startTime)
         : getMatchStart(activeArena.match);
-    if (start === null || start >= playback.duration) return;
+    const matchEnd =
+      listeningMode === "match" ? getMatchEnd(activeArena.match) : null;
+    const maxTime = matchEnd !== null ? matchEnd : playback.duration;
+    if (start === null || (maxTime > 0 && start >= maxTime)) return;
     if (
       controls.getCurrentTime() < start ||
-      controls.getCurrentTime() >= playback.duration
+      (maxTime > 0 && controls.getCurrentTime() >= maxTime)
     ) {
       controls.seekAll(start);
     }
 
     const requestId = ++playbackActionRef.current;
+    playbackModeRef.current = "all";
     controls.playAll().then((results) => {
       if (requestId === playbackActionRef.current) {
         const started = results.some((result) => result.status === "fulfilled");
@@ -122,6 +156,7 @@ export default function StadiumMap() {
               console.error("Kunde inte spela upp huvudljudet:", result.reason);
             }
           }
+          playbackModeRef.current = "paused";
           setPlayback((previous) => ({ ...previous, mode: "paused" }));
         }
       }
@@ -130,12 +165,15 @@ export default function StadiumMap() {
 
   const handleSelectMode = (mode) => {
     if (mode === listeningMode || isTransitioning) return;
+    playbackActionRef.current += 1;
+    playbackModeRef.current = "paused";
+    audioControlsRef.current?.pauseAll();
+
+    listeningModeRef.current = mode;
     const start =
       mode === "ambience"
         ? parsePlaybackTime(activeArena.ambience?.startTime)
         : getMatchStart(activeArena.match);
-    playbackActionRef.current += 1;
-    audioControlsRef.current?.pauseAll();
     if (start !== null) audioControlsRef.current?.seekAll(start);
     setPlayback((previous) => ({
       ...previous,
@@ -154,8 +192,11 @@ export default function StadiumMap() {
   const prepareStandPlayback = () => {
     const start = listeningMode === "ambience" ? ambienceStart : matchStart;
     if (start === null) return;
+    const matchEnd =
+      listeningMode === "match" ? getMatchEnd(activeArena.match) : null;
+    const maxTime = matchEnd !== null ? matchEnd : playback.duration;
     const time = audioControlsRef.current?.getCurrentTime();
-    if (time < start || (playback.duration > 0 && time >= playback.duration)) {
+    if (time < start || (maxTime > 0 && time >= maxTime)) {
       audioControlsRef.current?.seekAll(start);
     }
   };
@@ -173,6 +214,8 @@ export default function StadiumMap() {
     if (arenaKey === activeArenaKey || isTransitioning) return;
 
     activeArenaKeyRef.current = arenaKey;
+    listeningModeRef.current = "match";
+    playbackModeRef.current = "paused";
     setListeningMode("match");
     playbackActionRef.current += 1;
     audioControlsRef.current?.pauseAll();

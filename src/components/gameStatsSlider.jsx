@@ -4,15 +4,19 @@ import {
   assignLabelLanes,
   spreadPositions,
   formatMatchMinute,
+  getMatchClock,
   getMatchScores,
   getMinuteTicks,
   getTimelineSegments,
   getTimelineTicks,
   parsePlaybackTime,
 } from "./matchTimeline";
+import goalIcon from "../assets/icons/events/goal.png";
+import substitutionIcon from "../assets/icons/events/substitution.png";
+import penaltyIcon from "../assets/icons/events/penalty.png";
+import yellowCardIcon from "../assets/icons/events/yellow-card.svg";
+import redCardIcon from "../assets/icons/events/red-card.svg";
 import "./gameStatsSlider.css";
-
-const POST_MATCH_SECONDS = 15;
 
 function getTimePosition(time, duration, start = 0) {
   if (duration <= start) return 0;
@@ -28,78 +32,45 @@ function formatAudioTime(time) {
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+const INCIDENT_ICONS = {
+  goal: goalIcon,
+  "yellow-card": yellowCardIcon,
+  "red-card": redCardIcon,
+  substitution: substitutionIcon,
+  penalty: penaltyIcon,
+};
+
 function IncidentIcon({ type }) {
-  switch (type) {
-    case "goal":
-      return (
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <circle cx="10" cy="10" r="6.4" fill="#f7f8fb" />
-          <path d="m10 6.3 2.3 1.7-.9 2.7H8.6L7.7 8z" fill="#17212b" />
-          <path
-            d="M10 6.3V4m2.3 4 2.2-.7m-3.1 3.4 1.4 1.9m-4.2-1.9-1.4 1.9M7.7 8l-2.2-.7"
-            fill="none"
-            stroke="#17212b"
-            strokeWidth="1"
-            strokeLinecap="round"
-          />
-        </svg>
-      );
-    case "yellow-card":
-      return (
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <rect
-            x="6.3"
-            y="4.2"
-            width="7.4"
-            height="11.6"
-            rx="1.1"
-            fill="#f6ce48"
-            stroke="#fff1b1"
-            strokeWidth=".8"
-            transform="rotate(10 10 10)"
-          />
-        </svg>
-      );
-    case "red-card":
-      return (
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <rect
-            x="6.3"
-            y="4.2"
-            width="7.4"
-            height="11.6"
-            rx="1.1"
-            fill="#ef5a5a"
-            stroke="#ffc2be"
-            strokeWidth=".8"
-            transform="rotate(10 10 10)"
-          />
-        </svg>
-      );
-    case "substitution":
-      return (
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path
-            d="M4.5 7h10m-3-3 3 3-3 3"
-            fill="none"
-            stroke="#65ddb1"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M15.5 13h-10m3 3-3-3 3-3"
-            fill="none"
-            stroke="#f18585"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      );
-    default:
-      return null;
+  if (type === "medical") {
+    return (
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M8.3 4.5h3.4v3.8h3.8v3.4h-3.8v3.8H8.3v-3.8H4.5V8.3h3.8z" fill="#ef5a5a" />
+      </svg>
+    );
   }
+  const src = INCIDENT_ICONS[type];
+  return src ? <img src={src} alt="" data-type={type} draggable="false" /> : null;
+}
+
+function MatchClock({ time, segments }) {
+  const clock = getMatchClock(time, segments);
+  if (clock.label) {
+    const text =
+      clock.label === "HT"
+        ? "Halftime"
+        : clock.label === "FT"
+          ? "Full time"
+          : clock.label;
+    return <span className="audio-player__clock-minutes">{text}</span>;
+  }
+  return (
+    <>
+      <span className="audio-player__clock-minutes">{clock.minutes}</span>
+      <span className="audio-player__clock-seconds">
+        :{String(clock.seconds).padStart(2, "0")}
+      </span>
+    </>
+  );
 }
 
 export default function GameStatsSlider({
@@ -134,7 +105,7 @@ export default function GameStatsSlider({
   )?.start;
   const duration =
     listeningMode === "match" && fullTimeStart != null
-      ? Math.min(audioDuration, fullTimeStart + POST_MATCH_SECONDS)
+      ? fullTimeStart
       : audioDuration;
   const timelineStart = listeningMode === "match" ? matchStart : 0;
   const displayTime = Math.min(
@@ -184,13 +155,15 @@ export default function GameStatsSlider({
   const TIMELINE_PX = timelinePx;
   const eventLanes = assignLabelLanes(
     events.map((event) => {
-      const center =
-        (getTimePosition(event.mediaStart, duration, timelineStart) / 100) *
-        TIMELINE_PX;
-      const half = ((event.shortLabel ?? event.label).length * 6 + 8) / 2;
-      return { left: center - half, right: center + half };
+      const pos = getTimePosition(event.mediaStart, duration, timelineStart);
+      const center = (pos / 100) * TIMELINE_PX;
+      const width = (event.shortLabel ?? event.label).length * 6 + 10;
+      return pos > 90
+        ? { left: center - width, right: center + 2 }
+        : { left: center - 2, right: center + width };
     }),
     3,
+    8,
   );
   const incidentOffsets = spreadPositions(
     incidents.map(
@@ -200,6 +173,16 @@ export default function GameStatsSlider({
     ),
     20,
   );
+  const matchDate = match.date
+    ? new Date(`${match.date}T12:00:00`).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+  const attendance = match.attendance
+    ? Number(match.attendance).toLocaleString("en-GB")
+    : null;
   const scores = getMatchScores(match.teams, incidents, displayTime);
 
   const seek = (value) => {
@@ -314,25 +297,35 @@ export default function GameStatsSlider({
   return (
     <div className="match-overlay">
       <header className="match-scoreboard">
-        <div className="match-scoreboard__meta">{match.competition}</div>
+        <div className="match-scoreboard__meta">
+          <span>{match.competition}</span>
+          {matchDate && <span>{matchDate}</span>}
+        </div>
         <div className="match-scoreboard__teams">
-          {match.teams.map((team, index) => (
-            <div
-              className={`match-team match-team--${index === 0 ? "home" : "away"}`}
-              key={team.id}
-            >
-              <img src={team.logo} alt="" className="match-team__logo" />
-              <div className="match-team__details">
-                <span className="match-team__name">{team.name}</span>
-              </div>
-              <strong className="match-team__score">{scores[team.id]}</strong>
-            </div>
-          ))}
-          <span className="match-scoreboard__separator">—</span>
+          <div className="match-team match-team--home" key={match.teams[0].id}>
+            <img src={match.teams[0].logo} alt="" className="match-team__logo" />
+            <span className="match-team__name">{match.teams[0].name}</span>
+          </div>
+          <div className="match-scoreboard__score">
+            <strong>{scores[match.teams[0].id]}</strong>
+            <span className="match-scoreboard__separator">–</span>
+            <strong>{scores[match.teams[1].id]}</strong>
+          </div>
+          <div className="match-team match-team--away" key={match.teams[1].id}>
+            <img src={match.teams[1].logo} alt="" className="match-team__logo" />
+            <span className="match-team__name">{match.teams[1].name}</span>
+          </div>
         </div>
-        <div className="match-scoreboard__clock">
-          {formatMatchMinute(displayTime, segments)}
-        </div>
+        {attendance && (
+          <div className="match-scoreboard__attendance">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="7" cy="7" r="2.6" />
+              <circle cx="14" cy="8" r="2.1" />
+              <path d="M2 16c0-3 2.2-4.8 5-4.8s5 1.8 5 4.8zM12 12.2c.7-.3 1.3-.4 2-.4 2.4 0 4 1.5 4 4.2h-4.6c0-1.4-.5-2.9-1.4-3.8z" />
+            </svg>
+            {attendance} spectators
+          </div>
+        )}
       </header>
 
       <div className="audio-controls">
@@ -365,6 +358,12 @@ export default function GameStatsSlider({
               Audio file for the play button is missing
             </span>
           )}
+          <div className="audio-player__clock" aria-live="off">
+            <span className="audio-player__clock-caption">Match time</span>
+            <strong className="audio-player__clock-value">
+              <MatchClock time={displayTime} segments={segments} />
+            </strong>
+          </div>
           <div className="audio-player__timeline">
             <div className="audio-timeline">
               <div className="audio-timeline__scale" ref={scaleRef}>
@@ -404,7 +403,7 @@ export default function GameStatsSlider({
                         }}
                       >
                         <span className="audio-timeline__added-time-label">
-                          +{segment.clockEnd - segment.clockStart}'
+                          +{Math.round(segment.clockEnd - segment.clockStart)}'
                         </span>
                       </span>
                     );
@@ -434,7 +433,7 @@ export default function GameStatsSlider({
                         }}
                       >
                         <span className="audio-timeline__halftime-label">
-                          HT
+                          Halftime
                         </span>
                       </span>
                     );
@@ -487,6 +486,7 @@ export default function GameStatsSlider({
                     duration,
                     timelineStart,
                   );
+                  const isAlignRight = startPosition > 90;
                   return (
                     <span
                       key={`${event.startTime}-${event.endTime}-${event.label}`}
@@ -500,7 +500,7 @@ export default function GameStatsSlider({
                         }}
                       />
                       <button
-                        className={`audio-timeline__event audio-timeline__event--lane-${Math.max(lane, 0)}${lane === -1 ? " audio-timeline__event--compact" : ""}`}
+                        className={`audio-timeline__event audio-timeline__event--lane-${Math.max(lane, 0)}${lane === -1 ? " audio-timeline__event--compact" : ""}${isAlignRight ? " audio-timeline__event--align-right" : ""}`}
                         type="button"
                         style={{ left: `${startPosition}%` }}
                         title={`${event.startTime}–${event.endTime} · ${event.label}`}
@@ -510,7 +510,11 @@ export default function GameStatsSlider({
                         }
                         onClick={(clickEvent) => {
                           clickEvent.stopPropagation();
-                          seekToTimelinePosition(mediaStart);
+                          const targetTime =
+                            mediaStart >= duration - 1
+                              ? Math.max(timelineStart, duration - 10)
+                              : mediaStart;
+                          seekToTimelinePosition(targetTime);
                         }}
                       >
                         <span className="audio-timeline__event-label">

@@ -9,6 +9,8 @@
   },
   "match": {
     "competition": "Allsvenskan 2026",
+    "date": "2026-11-01",
+    "attendance": 19876,
     "sourceUrl": "https://www.espn.com/soccer/match/_/gameId/401842868/hammarby-if-malmo-ff",
     "timelineSegments": [
       {
@@ -27,7 +29,7 @@
         "startTime": "01:12.267",
         "endTime": "01:20.297",
         "clockStart": 45,
-        "clockEnd": 50
+        "clockEnd": 46.0167
       },
       {
         "id": "halftime",
@@ -52,7 +54,7 @@
         "startTime": "02:34.170",
         "endTime": "02:42.200",
         "clockStart": 90,
-        "clockEnd": 95
+        "clockEnd": 93.15
       },
       {
         "id": "fullTime",
@@ -68,7 +70,7 @@
         "name": "Malmö FF",
         "shortName": "Malmö",
         "abbreviation": "MAL",
-        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2720.png",
+        "logo": "src/assets/vector/mff.svg",
         "color": "#5699eb"
       },
       {
@@ -76,7 +78,7 @@
         "name": "Hammarby IF",
         "shortName": "Hammarby",
         "abbreviation": "HAM",
-        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2495.png",
+        "logo": "src/assets/vector/hammarby.svg",
         "color": "#ffcc00"
       }
     ],
@@ -110,41 +112,27 @@
     "incidents": [
       {
         "type": "goal",
-        "time": "00:16.059",
-        "teamId": "2720",
-        "label": "Mål"
-      },
-      {
-        "type": "yellow-card",
-        "time": "00:40.149",
-        "label": "Gult kort"
+        "time": "00:10.150",
+        "label": "Goal, Diego Garcia Campos (Malmö FF)",
+        "teamId": "2720"
       },
       {
         "type": "goal",
-        "time": "01:04.238",
-        "teamId": "2495",
-        "label": "Mål"
-      },
-      {
-        "type": "substitution",
-        "time": "01:36.356",
-        "label": "Byte"
+        "time": "01:33.434",
+        "label": "Goal, Victor Eriksson (Hammarby IF)",
+        "teamId": "2495"
       },
       {
         "type": "goal",
-        "time": "01:50.810",
-        "teamId": "2495",
-        "label": "Mål"
+        "time": "01:41.012",
+        "label": "Goal, Montader Madjed (Hammarby IF)",
+        "teamId": "2495"
       },
       {
         "type": "red-card",
-        "time": "02:08.475",
-        "label": "Rött kort"
-      },
-      {
-        "type": "substitution",
-        "time": "02:24.535",
-        "label": "Byte"
+        "time": "02:21.798",
+        "label": "Red card, Andrej Duric (Malmö FF)",
+        "teamId": "2720"
       }
     ]
   },
