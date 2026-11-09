@@ -44,7 +44,7 @@ function IncidentIcon({ type }) {
   if (type === "medical") {
     return (
       <svg viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M8.3 4.5h3.4v3.8h3.8v3.4h-3.8v3.8H8.3v-3.8H4.5V8.3h3.8z" fill="#ef5a5a" />
+        <path d="M8.3 4.5h3.4v3.8h3.8v3.4h-3.8v3.8H8.3v-3.8H4.5V8.3h3.8z" fill="var(--red)" />
       </svg>
     );
   }

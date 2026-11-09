@@ -28,5 +28,5 @@
   </defs>
 
   <!-- En mjukt röd cirkel där mönstret från masken klipps ut -->
-  <circle cx="50" cy="50" r="45" fill="#E63946" mask="url(#cutout)" />
+  <circle cx="50" cy="50" r="45" fill="#B20808" mask="url(#cutout)" />
 </svg>

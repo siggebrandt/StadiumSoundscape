@@ -286,14 +286,14 @@ export default function StadiumMap() {
           pointerEvents: isTransitioning ? "all" : "none",
           opacity: isTransitioning ? 1 : 0,
           transition: "opacity 0.35s ease-in-out",
-          backgroundColor: "rgba(10, 15, 29, 0.75)",
+          backgroundColor: "rgb(251 247 239 / 82%)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          color: "#ffffff",
+          color: "var(--brown)",
           fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
@@ -313,7 +313,7 @@ export default function StadiumMap() {
               fontSize: "12px",
               letterSpacing: "3px",
               textTransform: "uppercase",
-              color: "#94a3b8",
+              color: "color-mix(in srgb, var(--brown) 76%, transparent)",
               fontWeight: "600",
             }}
           >
@@ -325,7 +325,7 @@ export default function StadiumMap() {
               fontWeight: "800",
               letterSpacing: "1.5px",
               textTransform: "uppercase",
-              color: "#ffffff",
+              color: "var(--brown)",
             }}
           >
             {transitioningName}
