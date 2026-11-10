@@ -419,6 +419,8 @@ export default function StadiumMap() {
           <RenderObject
             stands={activeArena.stands}
             playbackAudioUrl={playbackAudioUrl}
+            waveform={ulleviWaveform}
+            listeningMode={listeningMode}
             onAudioStateChange={handleAudioStateChange}
             onPlaybackModeChange={handlePlaybackModeChange}
             onPlaybackEnded={handlePlaybackEnded}

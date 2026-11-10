@@ -184,6 +184,8 @@ function createLayer({
   id,
   stands,
   playbackAudioUrl,
+  waveform,
+  initialListeningMode,
   color,
   altitude,
   onAudioStateChange,
@@ -228,6 +230,7 @@ function createLayer({
   let renderer;
   let playbackSequence = 0;
   let playbackMode = "paused";
+  let listeningMode = initialListeningMode ?? "match";
   let activeFlow = null;
   let timelinePosition = 0;
   const localPositions = list.map((stand) => {
@@ -249,13 +252,13 @@ function createLayer({
   );
 
   function notifyAudioState() {
-    onAudioStateChange(
-      Math.max(
-        ...soundFlows.map((flow) => flow.getDuration()),
-        playbackFlow?.getDuration() ?? 0,
-      ),
-      getCurrentTime(),
-    );
+    const waveformDuration = waveform?.values?.length
+      ? waveform.values.length * (waveform.sampleSeconds ?? 1)
+      : 0;
+    const duration = playbackFlow
+      ? playbackFlow.getDuration() || waveformDuration
+      : Math.max(...soundFlows.map((flow) => flow.getDuration()), 0);
+    onAudioStateChange(duration, getCurrentTime());
   }
 
   function getCurrentTime() {
@@ -289,6 +292,7 @@ function createLayer({
         playbackFlow = createSoundFlow({
           audioUrl: playbackAudioUrl,
           makeupGain: 4,
+          nativePlayback: true,
           onAudioStateChange: notifyAudioState,
           onEnded: () => {
             timelinePosition = playbackFlow.getCurrentTime();
@@ -346,11 +350,26 @@ function createLayer({
         .multiply(modelTransform);
 
       const t = performance.now() / 1000;
+      const waveformLevel = () => {
+        const values = waveform?.values;
+        if (!values?.length || !playbackFlow) return null;
+        const sampleSeconds = waveform.sampleSeconds ?? 1;
+        const index = Math.floor(playbackFlow.getCurrentTime() / sampleSeconds);
+        const sample = values[index];
+        if (!Number.isFinite(sample)) return null;
+        // Ambience needs a more responsive particle level than the match mix.
+        const sensitivity = listeningMode === "ambience" ? 2.8 : 1;
+        return THREE.MathUtils.clamp(sample * 0.58 * sensitivity, 0, 1);
+      };
       soundFlows.forEach((flow) => {
         const a = flow.anchor;
         const g = map.queryTerrainElevation([a.longitude, a.latitude]);
         if (g != null) a.ground = g; // behåll senaste värdet om terrängen inte är laddad
         flow.group.position.z = a.ground + a.altitude;
+        flow.setFallbackAudioLevel(waveformLevel());
+        flow.setParticleEmissionBoost(
+          listeningMode === "ambience" ? 3 : 1,
+        );
         flow.update(t);
       });
 
@@ -397,6 +416,10 @@ function createLayer({
         }
         return results;
       });
+    },
+
+    setListeningMode(mode) {
+      listeningMode = mode;
     },
 
     playSolo(clickedFlow) {
@@ -534,6 +557,8 @@ function createLayer({
 export default function RenderObject({
   stands,
   playbackAudioUrl,
+  waveform,
+  listeningMode,
   color = "#38bdf8",
   altitude = 5,
   onAudioStateChange,
@@ -565,6 +590,8 @@ export default function RenderObject({
         id: layerId,
         stands,
         playbackAudioUrl,
+        waveform,
+        initialListeningMode: listeningMode,
         color,
         altitude,
         onAudioStateChange,
@@ -634,6 +661,7 @@ export default function RenderObject({
     layerId,
     stands,
     playbackAudioUrl,
+    waveform,
     color,
     altitude,
     onAudioStateChange,
@@ -641,6 +669,10 @@ export default function RenderObject({
     onPlaybackEnded,
     controlsRef,
   ]);
+
+  useEffect(() => {
+    controlsRef.current?.setListeningMode(listeningMode);
+  }, [controlsRef, listeningMode]);
 
   return null;
 }

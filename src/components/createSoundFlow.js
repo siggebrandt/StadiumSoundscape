@@ -116,6 +116,7 @@ export default function createSoundFlow({
   onAudioStateChange = () => {},
   onEnded = () => {},
   makeupGain = 1,
+  nativePlayback = false,
 }) {
   const group = new THREE.Group();
   const standbyColor = new THREE.Color(color);
@@ -273,12 +274,22 @@ export default function createSoundFlow({
   let extractor = null;
   let extractorSource = null;
   let features = EMPTY_FEATURES;
+  let fallbackAudioLevel = null;
+  let particleEmissionBoost = 1;
+  const fallbackBands = new Float32Array(BAND_COUNT);
+  const fallbackFeatures = {
+    ...EMPTY_FEATURES,
+    silent: false,
+    bands: fallbackBands,
+  };
   let nextParticleIndex = 0;
 
   function initializeAudio() {
     if (!audio) {
       audio = new Audio();
-      audio.crossOrigin = "anonymous";
+      // Native playback works for cross-origin files whose host does not
+      // allow Web Audio access through CORS.
+      if (!nativePlayback) audio.crossOrigin = "anonymous";
       audio.preload = "metadata";
       audio.volume = audioVolume;
       audio.src = audioUrl;
@@ -337,8 +348,10 @@ export default function createSoundFlow({
     const request = ++playRequest;
     sharedAnalysis = null;
     const sound = initializeAudio();
-    initializeAnalyser(sound);
-    await audioContext.resume();
+    if (!nativePlayback) {
+      initializeAnalyser(sound);
+      await audioContext.resume();
+    }
     if (request !== playRequest || disposed) {
       throw new DOMException("Playback interrupted", "AbortError");
     }
@@ -434,7 +447,10 @@ export default function createSoundFlow({
   function emitWave(burst) {
     const sources = flow.sourcePositions;
     const wavePhase = Math.random() * Math.PI * 2;
-    const gain = (0.35 + features.loudness * 2.2) * (1 + burst * 1.2);
+    const gain =
+      (0.35 + features.loudness * 2.2) *
+      (1 + burst * 1.2) *
+      particleEmissionBoost;
     for (let i = 0; i < sources.length; i++) {
       const band = Math.min(
         BAND_COUNT - 1,
@@ -470,7 +486,20 @@ export default function createSoundFlow({
       extractor = createAudioFeatureExtractor(activeAnalyser);
       extractorSource = activeAnalyser;
     }
-    features = extractor ? extractor.analyze(deltaTime) : EMPTY_FEATURES;
+    if (extractor) {
+      features = extractor.analyze(deltaTime);
+    } else if (fallbackAudioLevel !== null) {
+      const level = THREE.MathUtils.clamp(fallbackAudioLevel, 0, 1);
+      fallbackFeatures.absolute = level;
+      fallbackFeatures.loudness = level * 0.55;
+      fallbackFeatures.centroid = 0.45;
+      fallbackFeatures.flatness = 0.2;
+      fallbackFeatures.onset = false;
+      fallbackBands.fill(level * 0.48);
+      features = fallbackFeatures;
+    } else {
+      features = EMPTY_FEATURES;
+    }
 
     const canEmit = Boolean(markerVertices) && (playing || emissionEnabled);
     const energy = Math.min(
@@ -574,7 +603,10 @@ export default function createSoundFlow({
       if (features.onset) {
         emitWave(features.onsetStrength);
         timeSinceWave = 0;
-      } else if (timeSinceWave >= 0.3 - features.loudness * 0.15) {
+      } else if (
+        timeSinceWave >=
+        (0.3 - features.loudness * 0.15) / particleEmissionBoost
+      ) {
         emitWave(0);
         timeSinceWave = 0;
       }
@@ -616,6 +648,12 @@ export default function createSoundFlow({
     },
     getAudioAnalysis: () => ({ analyser, frequencyData }),
     setVolume,
+    setFallbackAudioLevel: (level) => {
+      fallbackAudioLevel = level;
+    },
+    setParticleEmissionBoost: (boost) => {
+      particleEmissionBoost = Math.max(1, boost);
+    },
     setEmissionEnabled: (enabled) => {
       emissionEnabled = enabled;
     },

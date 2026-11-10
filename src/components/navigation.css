@@ -158,16 +158,6 @@
   font-weight: 700;
 }
 
-.navigation__mode-hint {
-  color: color-mix(in srgb, var(--brown) 75%, var(--cream));
-  font-size: 10px;
-}
-
-.navigation__mode--active .navigation__mode-hint,
-.navigation__mode--active:hover .navigation__mode-hint {
-  color: var(--brown);
-}
-
 @media (max-width: 760px) {
   .navigation {
     top: 120px;

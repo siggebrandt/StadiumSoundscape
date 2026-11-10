@@ -6,8 +6,8 @@ const ARENA_LIST = [
 ];
 
 const MODE_LIST = [
-  { id: "match", label: "Match", hint: "Full game" },
-  { id: "ambience", label: "Ambience", hint: "Crowd only" },
+  { id: "match", label: "Match" },
+  { id: "ambience", label: "Ambience" },
 ];
 
 export default function Navigation({
@@ -54,7 +54,7 @@ export default function Navigation({
           role="group"
           aria-label="Välj ljudläge"
         >
-          {MODE_LIST.map(({ id, label, hint }) => (
+          {MODE_LIST.map(({ id, label }) => (
             <button
               key={id}
               type="button"
@@ -63,7 +63,6 @@ export default function Navigation({
               onClick={() => onSelectMode(id)}
             >
               <span className="navigation__mode-label">{label}</span>
-              <span className="navigation__mode-hint">{hint}</span>
             </button>
           ))}
         </div>
