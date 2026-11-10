@@ -394,7 +394,7 @@ export default function createSoundFlow({
     if (audio) audio.volume = audioVolume;
   }
 
-  function emitParticle(index, source, energy, band, burst) {
+  function emitParticle(index, source, energy, band, burst, wavePhase) {
     const pitch = band / (BAND_COUNT - 1);
     flow.emitterX[index] = source.x;
     flow.emitterY[index] = source.y;
@@ -419,21 +419,21 @@ export default function createSoundFlow({
       (Math.random() - 0.5) * (1.4 + Math.min(energy, 1) * 2.4);
     flow.forwardOffsets[index] = (Math.random() - 0.5) * 1.2;
     flow.intensityOffsets[index] = 0.65 + Math.random() * 0.35;
-    flow.baseSizes[index] =
-      (6 + Math.random() * 3 + Math.min(energy, 1) * 4) * (1.2 - pitch * 0.5);
+    flow.baseSizes[index] = 8 + Math.random();
     flow.speeds[index] =
       SOUND_SPEED *
       (0.8 + Math.random() * 0.7 + pitch * 0.4) *
       (0.85 + features.centroid * 0.5) *
       (1 + burst * 0.5);
     flow.turbulence[index] = 0.5 + features.flatness * 2;
-    flow.wobblePhases[index] = Math.random() * Math.PI * 2;
-    flow.wobbleRates[index] = 1 + pitch * 2.5 + Math.random();
+    flow.wobblePhases[index] = wavePhase + pitch * Math.PI * 0.7;
+    flow.wobbleRates[index] = 2.2 + pitch * 3.4;
     flow.bandMix[index] = pitch;
   }
 
   function emitWave(burst) {
     const sources = flow.sourcePositions;
+    const wavePhase = Math.random() * Math.PI * 2;
     const gain = (0.35 + features.loudness * 2.2) * (1 + burst * 1.2);
     for (let i = 0; i < sources.length; i++) {
       const band = Math.min(
@@ -453,6 +453,7 @@ export default function createSoundFlow({
           Math.min(1, level + burst * 0.25),
           band,
           burst,
+          wavePhase,
         );
         nextParticleIndex = (nextParticleIndex + 1) % PARTICLE_COUNT;
       }
@@ -481,6 +482,12 @@ export default function createSoundFlow({
     const positions = geometry.attributes.position.array;
     const colors = geometry.attributes.color.array;
     const opacities = flow.opacities;
+    const loudPeak = THREE.MathUtils.smoothstep(
+      features.absolute,
+      0.42,
+      0.82,
+    );
+    const sizeBoost = 1 + loudPeak ** 1.5 * 1.3;
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const index = i * 3;
@@ -501,35 +508,34 @@ export default function createSoundFlow({
       }
 
       const age = flow.ages[i];
-      const distance =
-        flow.speeds[i] * age * (1 - 0.45 * progress) + flow.forwardOffsets[i];
+      const travelDistance =
+        flow.speeds[i] * age * (1 - 0.45 * progress) +
+        flow.forwardOffsets[i];
       const wavePhase =
         age * flow.wobbleRates[i] + flow.wobblePhases[i];
-      const wobble = Math.sin(wavePhase);
       const travelEnvelope = Math.max(Math.sin(progress * Math.PI), 0) ** 0.75;
       const waveAmplitude =
-        (1.8 + flow.birthEnergy[i] * 4.5) *
-        (0.75 + flow.turbulence[i] * 0.3);
+        (1.4 + flow.birthEnergy[i] * 3.8) *
+        (0.8 + flow.turbulence[i] * 0.2);
+      const compression =
+        Math.sin(wavePhase) * waveAmplitude * 0.38 * travelEnvelope;
       const sideWave =
-        wobble * waveAmplitude +
-        Math.sin(
-          progress * Math.PI * (1.5 + flow.bandMix[i] * 1.6) +
-            flow.wobblePhases[i],
-        ) *
-          waveAmplitude *
-          0.35;
+        Math.sin(wavePhase + Math.PI * 0.5) *
+        waveAmplitude *
+        0.72 *
+        travelEnvelope;
       const width =
         flow.lateralOffsets[i] * (1 + progress * 0.45) +
-        sideWave * travelEnvelope;
+        sideWave;
       const verticalWave =
-        Math.cos(wavePhase * 0.82 + flow.bandMix[i] * Math.PI) *
+        Math.sin(wavePhase + flow.bandMix[i] * Math.PI * 0.75) *
         waveAmplitude *
-        0.62 *
+        0.55 *
         travelEnvelope;
       const archHeight =
-        (1 + flow.birthEnergy[i] * 4) * travelEnvelope +
+        (0.8 + flow.birthEnergy[i] * 2.4) * travelEnvelope +
         verticalWave +
-        progress * flow.bandMix[i] * 3;
+        progress * flow.bandMix[i] * 2.5;
       const fadeIn = Math.min(progress * 10, 1);
       const fadeOut = (1 - progress) ** 1.3;
       const intensity =
@@ -540,11 +546,11 @@ export default function createSoundFlow({
 
       positions[index] =
         flow.emitterX[i] +
-        flow.directionX[i] * distance +
+        flow.directionX[i] * (travelDistance + compression) +
         flow.normalX[i] * width;
       positions[index + 1] =
         flow.emitterY[i] +
-        flow.directionY[i] * distance +
+        flow.directionY[i] * (travelDistance + compression) +
         flow.normalY[i] * width;
       positions[index + 2] = flow.emitterZ[i] + archHeight;
 
@@ -557,10 +563,11 @@ export default function createSoundFlow({
       colors[index + 1] = particleColor.g + (1 - particleColor.g) * shine;
       colors[index + 2] = particleColor.b + (1 - particleColor.b) * shine;
       opacities[i] = Math.min(1, intensity * (0.5 + Math.min(energy * 2.5, 1)));
-      const sizePulse = 0.9 + (wobble + 1) * 0.05 * travelEnvelope;
+      const sizePulse =
+        0.92 + (Math.sin(wavePhase) + 1) * 0.04 * travelEnvelope;
       flow.sizes[i] =
         flow.baseSizes[i] *
-        (0.75 + Math.min(energy * 1.5, 0.6)) *
+        sizeBoost *
         sizePulse;
     }
     if (canEmit && !features.silent) {
