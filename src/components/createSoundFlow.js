@@ -486,7 +486,7 @@ export default function createSoundFlow({
       const index = i * 3;
       if (flow.ages[i] < 0) continue;
 
-      flow.ages[i] += canEmit && !features.silent ? deltaTime : deltaTime * 3;
+      flow.ages[i] += deltaTime;
       const progress = flow.ages[i] / flow.lifetimes[i];
       if (progress >= 1) {
         flow.ages[i] = -1;
@@ -503,26 +503,33 @@ export default function createSoundFlow({
       const age = flow.ages[i];
       const distance =
         flow.speeds[i] * age * (1 - 0.45 * progress) + flow.forwardOffsets[i];
-      const wobble = Math.sin(age * flow.wobbleRates[i] + flow.wobblePhases[i]);
-      const width =
-        flow.lateralOffsets[i] * (1 + progress * 0.7) +
-        wobble *
-          (0.3 + flow.birthEnergy[i] * 0.8) *
-          flow.turbulence[i] *
-          progress +
+      const wavePhase =
+        age * flow.wobbleRates[i] + flow.wobblePhases[i];
+      const wobble = Math.sin(wavePhase);
+      const travelEnvelope = Math.max(Math.sin(progress * Math.PI), 0) ** 0.75;
+      const waveAmplitude =
+        (1.8 + flow.birthEnergy[i] * 4.5) *
+        (0.75 + flow.turbulence[i] * 0.3);
+      const sideWave =
+        wobble * waveAmplitude +
         Math.sin(
-          progress * Math.PI * (0.8 + flow.bandMix[i] * 1.4) +
+          progress * Math.PI * (1.5 + flow.bandMix[i] * 1.6) +
             flow.wobblePhases[i],
         ) *
-          (2 + flow.birthEnergy[i] * 5) *
-          Math.sin(progress * Math.PI);
+          waveAmplitude *
+          0.35;
+      const width =
+        flow.lateralOffsets[i] * (1 + progress * 0.45) +
+        sideWave * travelEnvelope;
+      const verticalWave =
+        Math.cos(wavePhase * 0.82 + flow.bandMix[i] * Math.PI) *
+        waveAmplitude *
+        0.62 *
+        travelEnvelope;
       const archHeight =
-        (1 + flow.birthEnergy[i] * 8) * Math.sin(progress * Math.PI) +
-        progress * flow.bandMix[i] * 4 +
-        Math.cos(age * flow.wobbleRates[i] * 0.8 + flow.wobblePhases[i]) *
-          flow.birthEnergy[i] *
-          0.6 *
-          progress;
+        (1 + flow.birthEnergy[i] * 4) * travelEnvelope +
+        verticalWave +
+        progress * flow.bandMix[i] * 3;
       const fadeIn = Math.min(progress * 10, 1);
       const fadeOut = (1 - progress) ** 1.3;
       const intensity =
@@ -550,7 +557,11 @@ export default function createSoundFlow({
       colors[index + 1] = particleColor.g + (1 - particleColor.g) * shine;
       colors[index + 2] = particleColor.b + (1 - particleColor.b) * shine;
       opacities[i] = Math.min(1, intensity * (0.5 + Math.min(energy * 2.5, 1)));
-      flow.sizes[i] = flow.baseSizes[i] * (0.75 + Math.min(energy * 1.5, 0.6));
+      const sizePulse = 0.9 + (wobble + 1) * 0.05 * travelEnvelope;
+      flow.sizes[i] =
+        flow.baseSizes[i] *
+        (0.75 + Math.min(energy * 1.5, 0.6)) *
+        sizePulse;
     }
     if (canEmit && !features.silent) {
       if (features.onset) {
