@@ -428,7 +428,7 @@
   background: color-mix(in srgb, var(--red) 72%, transparent);
   box-shadow: inset 0 0 0 1px var(--red);
   pointer-events: none;
-  display: none;
+  visibility: hidden;
 }
 
 .audio-timeline__added-time-label {
@@ -441,6 +441,7 @@
   line-height: 1;
   white-space: nowrap;
   transform: translateX(-50%);
+  visibility: visible;
 }
 
 /* Halftime: bracket spanning up from the line with a full-word label */
