@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Waveform from "./waveform";
 import {
-  assignLabelLanes,
+  layoutEventLabels,
   spreadPositions,
   formatMatchMinute,
   getMatchClock,
@@ -39,6 +39,16 @@ const INCIDENT_ICONS = {
   substitution: substitutionIcon,
   penalty: penaltyIcon,
 };
+
+let eventLabelContext;
+
+function measureEventLabel(label) {
+  if (typeof document === "undefined") return label.length * 5.5 + 14;
+  eventLabelContext ??= document.createElement("canvas").getContext("2d");
+  if (!eventLabelContext) return label.length * 5.5 + 14;
+  eventLabelContext.font = "600 9px system-ui";
+  return Math.ceil(eventLabelContext.measureText(label).width);
+}
 
 function IncidentIcon({ type }) {
   if (type === "medical") {
@@ -100,12 +110,12 @@ export default function GameStatsSlider({
     return () => observer.disconnect();
   });
   const matchSegments = getTimelineSegments(match);
-  const fullTimeStart = matchSegments.find(
+  const fullTimeEnd = matchSegments.find(
     (segment) => segment.type === "full-time",
-  )?.start;
+  )?.end;
   const duration =
-    listeningMode === "match" && fullTimeStart != null
-      ? fullTimeStart
+    listeningMode === "match" && fullTimeEnd != null
+      ? fullTimeEnd
       : audioDuration;
   const timelineStart = listeningMode === "match" ? matchStart : 0;
   const displayTime = Math.min(
@@ -153,17 +163,16 @@ export default function GameStatsSlider({
   }, [match]);
 
   const TIMELINE_PX = timelinePx;
-  const eventLanes = assignLabelLanes(
+  const eventLabelLayout = layoutEventLabels(
     events.map((event) => {
       const pos = getTimePosition(event.mediaStart, duration, timelineStart);
       const center = (pos / 100) * TIMELINE_PX;
-      const width = (event.shortLabel ?? event.label).length * 6 + 10;
-      return pos > 90
-        ? { left: center - width, right: center + 2 }
-        : { left: center - 2, right: center + width };
+      return {
+        center,
+        width: measureEventLabel(event.shortLabel ?? event.label),
+      };
     }),
-    3,
-    8,
+    TIMELINE_PX,
   );
   const incidentOffsets = spreadPositions(
     incidents.map(
@@ -257,6 +266,7 @@ export default function GameStatsSlider({
                   end={ambienceStart + ambienceDuration}
                   progress={getTimePosition(ambienceTime, ambienceDuration)}
                   bars={90}
+                  curve={waveform?.displayCurve}
                 />
                 <div
                   className="audio-timeline__track"
@@ -373,6 +383,7 @@ export default function GameStatsSlider({
                   end={duration}
                   progress={progress}
                   bars={Math.max(40, Math.floor(timelinePx / 4))}
+                  curve={waveform?.displayCurve}
                 />
                 <div
                   className="audio-timeline__track"
@@ -473,7 +484,8 @@ export default function GameStatsSlider({
                   ))}
                 </div>
                 {events.map((event, eventIndex) => {
-                  const lane = eventLanes[eventIndex];
+                  const labelLayout = eventLabelLayout[eventIndex];
+                  const lane = labelLayout.lane;
                   const mediaStart = event.mediaStart;
                   const mediaEnd = event.mediaEnd;
                   const startPosition = getTimePosition(
@@ -486,7 +498,6 @@ export default function GameStatsSlider({
                     duration,
                     timelineStart,
                   );
-                  const isAlignRight = startPosition > 90;
                   return (
                     <span
                       key={`${event.startTime}-${event.endTime}-${event.label}`}
@@ -500,9 +511,13 @@ export default function GameStatsSlider({
                         }}
                       />
                       <button
-                        className={`audio-timeline__event audio-timeline__event--lane-${Math.max(lane, 0)}${lane === -1 ? " audio-timeline__event--compact" : ""}${isAlignRight ? " audio-timeline__event--align-right" : ""}`}
+                        className={`audio-timeline__event audio-timeline__event--lane-${Math.max(lane, 0)}${lane === -1 ? " audio-timeline__event--compact" : ""}${labelLayout.side === "left" ? " audio-timeline__event--label-left" : ""}`}
                         type="button"
-                        style={{ left: `${startPosition}%` }}
+                        style={{
+                          left: `${startPosition}%`,
+                          "--event-label-offset": `${labelLayout.offset}px`,
+                          "--event-label-width": `${labelLayout.width}px`,
+                        }}
                         title={`${event.startTime}–${event.endTime} · ${event.label}`}
                         aria-label={`Jump to ${event.label}, ${event.startTime} to ${event.endTime}`}
                         onPointerDown={(pointerEvent) =>

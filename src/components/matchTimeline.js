@@ -52,7 +52,7 @@ export function getMatchStart(match) {
 export function getMatchEnd(match) {
   const segments = getTimelineSegments(match);
   const fullTime = segments.find((segment) => segment.type === "full-time");
-  return fullTime ? fullTime.start : null;
+  return fullTime ? fullTime.end : null;
 }
 
 export function formatMatchMinute(time, segments) {
@@ -182,6 +182,50 @@ export function assignLabelLanes(items, laneCount, gap = 6) {
       lanes[index] = lane;
     });
   return lanes;
+}
+
+export function layoutEventLabels(items, timelineWidth, laneCount = 3, gap = 8) {
+  const lanes = Array.from({ length: laneCount }, () => []);
+  const layout = new Array(items.length);
+  const ordered = items
+    .map((item, index) => ({ ...item, index }))
+    .sort((a, b) => a.center - b.center);
+
+  ordered.forEach((item) => {
+    const width = Math.min(item.width, Math.max(timelineWidth - 12, 24));
+    const preferredSides =
+      item.center <= timelineWidth / 2 ? ["right", "left"] : ["left", "right"];
+    let placement = null;
+
+    for (let lane = 0; lane < laneCount && !placement; lane++) {
+      for (const side of preferredSides) {
+        const left = side === "right" ? item.center + 7 : item.center - width - 7;
+        const right = left + width;
+        if (left < 2 || right > timelineWidth - 2) continue;
+        const clear = lanes[lane].every(
+          (placed) => right + gap <= placed.left || left >= placed.right + gap,
+        );
+        if (clear) {
+          placement = { lane, left, right, side, width };
+          break;
+        }
+      }
+    }
+
+    if (placement) {
+      lanes[placement.lane].push(placement);
+      layout[item.index] = {
+        lane: placement.lane,
+        offset: placement.left - item.center,
+        width: placement.width,
+        side: placement.side,
+      };
+    } else {
+      layout[item.index] = { lane: -1, offset: 0, width: 0, side: "right" };
+    }
+  });
+
+  return layout;
 }
 
 // Nudges markers sideways so they keep at least minGap between their centres.

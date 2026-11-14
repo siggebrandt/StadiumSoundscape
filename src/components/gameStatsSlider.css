@@ -501,9 +501,8 @@
 .audio-timeline__event-label {
   position: absolute;
   top: 82px;
-  left: calc(50% + 5px);
-  width: max-content;
-  max-width: 90px;
+  left: calc(50% + var(--event-label-offset, 5px));
+  width: var(--event-label-width, max-content);
   overflow: hidden;
   color: var(--taupe);
   font-size: 9px;
@@ -555,9 +554,7 @@
   display: none;
 }
 
-.audio-timeline__event--align-right .audio-timeline__event-label {
-  left: auto;
-  right: calc(50% + 5px);
+.audio-timeline__event--label-left .audio-timeline__event-label {
   text-align: right;
 }
 
@@ -651,7 +648,7 @@
   }
 
   .audio-timeline__event-label {
-    max-width: 60px;
+    max-width: none;
     font-size: 8px;
   }
 

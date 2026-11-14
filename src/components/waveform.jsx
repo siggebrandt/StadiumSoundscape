@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-function binWaveform(values, start, end, bars) {
+function binWaveform(values, start, end, bars, curve) {
   if (!values?.length || end <= start || bars <= 0) return [];
   const span = (end - start) / bars;
   const bins = Array.from({ length: bars }, (_, index) => {
@@ -26,7 +26,7 @@ function binWaveform(values, start, end, bars) {
   });
   return smoothed.map((value) => {
     const level = Math.min(Math.max((value - low) / (high - low), 0), 1);
-    return 0.08 + Math.pow(level, 1.4) * 0.92;
+    return 0.08 + Math.pow(level, curve) * 0.92;
   });
 }
 
@@ -36,11 +36,12 @@ export default function Waveform({
   end,
   progress,
   bars = 120,
+  curve = 1.4,
   className = "",
 }) {
   const bins = useMemo(
-    () => binWaveform(values, start, end, bars),
-    [values, start, end, bars],
+    () => binWaveform(values, start, end, bars, curve),
+    [values, start, end, bars, curve],
   );
   if (!bins.length) return null;
   return (

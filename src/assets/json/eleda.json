@@ -17,8 +17,8 @@
         "id": "firstHalf",
         "label": "First half",
         "type": "regular",
-        "startTime": "00:00.000",
-        "endTime": "00:45.000",
+        "startTime": "00:30:00",
+        "endTime": "01:15:00",
         "clockStart": 0,
         "clockEnd": 45
       },
@@ -26,8 +26,8 @@
         "id": "firstHalfAddedTime",
         "label": "First-half added time",
         "type": "added-time",
-        "startTime": "00:45.000",
-        "endTime": "00:46.010",
+        "startTime": "01:15:00",
+        "endTime": "01:16:01",
         "clockStart": 45,
         "clockEnd": 46.0167
       },
@@ -35,15 +35,15 @@
         "id": "halftime",
         "label": "Half-time",
         "type": "halftime",
-        "startTime": "00:46.010",
-        "endTime": "01:00.500"
+        "startTime": "01:16:01",
+        "endTime": "01:30:50"
       },
       {
         "id": "secondHalf",
         "label": "Second half",
         "type": "regular",
-        "startTime": "01:00.500",
-        "endTime": "01:46.130",
+        "startTime": "01:30:50",
+        "endTime": "02:16:13",
         "clockStart": 45,
         "clockEnd": 90
       },
@@ -51,94 +51,123 @@
         "id": "secondHalfAddedTime",
         "label": "Second-half added time",
         "type": "added-time",
-        "startTime": "01:46.130",
-        "endTime": "01:49.190",
+        "startTime": "02:16:13",
+        "endTime": "02:19:19",
         "clockStart": 90,
-        "clockEnd": 93.15
+        "clockEnd": 93.1
       },
       {
         "id": "fullTime",
         "label": "Full-time",
         "type": "full-time",
-        "startTime": "01:49.190",
-        "endTime": "01:49.320"
+        "startTime": "02:19:19",
+        "endTime": "02:19:32"
       }
     ],
     "teams": [
       {
         "id": "2720",
         "name": "Malmö FF",
-        "shortName": "Malmö",
-        "abbreviation": "MAL",
+        "shortName": "MFF",
+        "abbreviation": "MFF",
         "logo": "/vector/mff.svg",
         "color": "#5699eb"
       },
       {
         "id": "2495",
         "name": "Hammarby IF",
-        "shortName": "Hammarby",
-        "abbreviation": "HAM",
+        "shortName": "HIF",
+        "abbreviation": "HIF",
         "logo": "/vector/hammarby.svg",
         "color": "#ffcc00"
       }
     ],
     "events": [
       {
-        "startTime": "00:06.000",
-        "endTime": "00:07.500",
-        "label": "Moment 1 - García goal"
+        "startTime": "00:30:00",
+        "endTime": "00:30:00",
+        "label": "Kickoff",
+        "shortLabel": "Kickoff"
       },
       {
-        "startTime": "01:08.200",
-        "endTime": "01:09.800",
-        "label": "Moment 2 - Eriksson equalizer"
+        "startTime": "00:36:26",
+        "endTime": "00:36:26",
+        "label": "MFF goal",
+        "shortLabel": "MFF goal"
       },
       {
-        "startTime": "01:13.200",
-        "endTime": "01:14.800",
-        "label": "Moment 3 - Madjed winner"
+        "startTime": "01:38:51",
+        "endTime": "01:38:51",
+        "label": "HIF goal",
+        "shortLabel": "HIF goal"
       },
       {
-        "startTime": "01:40.800",
-        "endTime": "01:42.500",
-        "label": "Moment 4 - Red card Duric"
+        "startTime": "01:43:55",
+        "endTime": "01:43:55",
+        "label": "HIF goal",
+        "shortLabel": "HIF goal"
       },
       {
-        "startTime": "01:43.000",
-        "endTime": "01:44.500",
-        "label": "Moment 5 - Intense crowd reaction"
+        "startTime": "02:13:28",
+        "endTime": "02:13:28",
+        "label": "Intensive crowd cheering",
+        "shortLabel": "Crowd cheering"
+      },
+      {
+        "startTime": "02:19:19",
+        "endTime": "02:19:32",
+        "label": "Full-time",
+        "shortLabel": "Full-time"
       }
     ],
     "incidents": [
       {
         "type": "goal",
-        "time": "00:06.260",
-        "label": "Goal, Diego García (Malmö FF)",
+        "time": "00:36:26",
+        "label": "Goal, Diego García (MFF)",
         "teamId": "2720"
       },
       {
         "type": "goal",
-        "time": "01:08.510",
-        "label": "Goal, Victor Eriksson (Hammarby IF)",
+        "time": "01:38:51",
+        "label": "Goal, Victor Eriksson (HIF)",
         "teamId": "2495"
       },
       {
         "type": "goal",
-        "time": "01:13.550",
-        "label": "Goal, Montader Madjed (Hammarby IF)",
+        "time": "01:43:55",
+        "label": "Goal, Montader Madjed (HIF)",
         "teamId": "2495"
       },
       {
+        "type": "yellow-card",
+        "time": "01:01:22",
+        "label": "Yellow card, HIF",
+        "teamId": "2495"
+      },
+      {
+        "type": "yellow-card",
+        "time": "01:44:27",
+        "label": "Yellow card"
+      },
+      {
+        "type": "yellow-card",
+        "time": "02:01:35",
+        "label": "Yellow card"
+      },
+      {
         "type": "red-card",
-        "time": "01:41.040",
-        "label": "Red card, Andrej Duric (Malmö FF)",
+        "time": "02:11:04",
+        "label": "Red card, Andrej Duric (MFF)",
         "teamId": "2720"
       }
     ]
   },
   "playbackAudioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/eleda/everything.ogg",
   "ambience": {
-    "startTime": "01:53.000"
+    "startTime": "00:00:00",
+    "standStartTime": "02:23:00",
+    "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/eleda/Timeline%201.ogg"
   },
   "stands": {
     "west": {

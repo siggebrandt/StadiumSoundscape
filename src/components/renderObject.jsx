@@ -184,7 +184,11 @@ function createLayer({
   id,
   stands,
   playbackAudioUrl,
+  ambienceAudioUrl,
+  ambienceStart = 0,
+  ambienceStandStart = 0,
   waveform,
+  ambienceWaveform,
   initialListeningMode,
   color,
   altitude,
@@ -227,6 +231,7 @@ function createLayer({
   const scene = new THREE.Scene();
   const soundFlows = [];
   let playbackFlow = null;
+  let ambienceFlow = null;
   let renderer;
   let playbackSequence = 0;
   let playbackMode = "paused";
@@ -251,26 +256,52 @@ function createLayer({
     localPositions,
   );
 
+  function getActivePlaybackFlow() {
+    return listeningMode === "ambience" && ambienceFlow
+      ? ambienceFlow
+      : playbackFlow;
+  }
+
+  function getPlaybackOffset() {
+    return listeningMode === "ambience" && ambienceFlow ? ambienceStart : 0;
+  }
+
+  function getActiveWaveform() {
+    return listeningMode === "ambience" && ambienceWaveform
+      ? ambienceWaveform
+      : waveform;
+  }
+
   function notifyAudioState() {
-    const waveformDuration = waveform?.values?.length
-      ? waveform.values.length * (waveform.sampleSeconds ?? 1)
+    const activeWaveform = getActiveWaveform();
+    const waveformDuration = activeWaveform?.values?.length
+      ? activeWaveform.values.length * (activeWaveform.sampleSeconds ?? 1)
       : 0;
-    const duration = playbackFlow
-      ? playbackFlow.getDuration() || waveformDuration
+    const activePlaybackFlow = getActivePlaybackFlow();
+    const offset = getPlaybackOffset();
+    const duration = activePlaybackFlow
+      ? (activePlaybackFlow.getDuration() || waveformDuration) + offset
       : Math.max(...soundFlows.map((flow) => flow.getDuration()), 0);
     onAudioStateChange(duration, getCurrentTime());
   }
 
   function getCurrentTime() {
-    const playingFlows = [
-      ...soundFlows,
-      ...(playbackFlow ? [playbackFlow] : []),
-    ].filter((flow) => flow.isPlaying());
-    if (playingFlows.length) {
-      timelinePosition = Math.max(
-        ...playingFlows.map((flow) => flow.getCurrentTime()),
-      );
+    const playingTimes = soundFlows
+      .filter((flow) => flow.isPlaying())
+      .map((flow) => {
+        const standOffset =
+          playbackMode === "solo" &&
+          listeningMode === "ambience" &&
+          ambienceFlow
+            ? ambienceStandStart
+            : 0;
+        return flow.getCurrentTime() - standOffset;
+      });
+    const activePlaybackFlow = getActivePlaybackFlow();
+    if (activePlaybackFlow?.isPlaying()) {
+      playingTimes.push(activePlaybackFlow.getCurrentTime() + getPlaybackOffset());
     }
+    if (playingTimes.length) timelinePosition = Math.max(...playingTimes);
     return timelinePosition;
   }
 
@@ -305,6 +336,22 @@ function createLayer({
         playbackFlow.prepareAudio();
       }
 
+      if (ambienceAudioUrl) {
+        ambienceFlow = createSoundFlow({
+          audioUrl: ambienceAudioUrl,
+          nativePlayback: true,
+          onAudioStateChange: notifyAudioState,
+          onEnded: () => {
+            timelinePosition = ambienceStart + ambienceFlow.getCurrentTime();
+            soundFlows.forEach((flow) => flow.setEmissionEnabled(false));
+            playbackMode = "paused";
+            activeFlow = null;
+            onPlaybackEnded();
+          },
+        });
+        ambienceFlow.prepareAudio();
+      }
+
       list.forEach((stand, index) => {
         const soundFlow = createSoundFlow({
           color: stand.color ?? color,
@@ -317,11 +364,18 @@ function createLayer({
           audioUrl: stand.audioUrl,
           onAudioStateChange: notifyAudioState,
           onEnded: () => {
-            if (soundFlows.every((item) => !item.isPlaying())) {
+            if (
+              playbackMode === "solo" &&
+              soundFlows.every((item) => !item.isPlaying())
+            ) {
+              const standOffset =
+                listeningMode === "ambience" && ambienceFlow
+                  ? ambienceStandStart
+                  : 0;
               timelinePosition = Math.max(
                 ...soundFlows.map((item) => item.getDuration()),
                 0,
-              );
+              ) - standOffset;
               soundFlows.forEach((item) => item.setEmissionEnabled(false));
               playbackMode = "paused";
               activeFlow = null;
@@ -351,10 +405,10 @@ function createLayer({
 
       const t = performance.now() / 1000;
       const waveformLevel = () => {
-        const values = waveform?.values;
-        if (!values?.length || !playbackFlow) return null;
-        const sampleSeconds = waveform.sampleSeconds ?? 1;
-        const index = Math.floor(playbackFlow.getCurrentTime() / sampleSeconds);
+        const values = getActiveWaveform()?.values;
+        if (!values?.length || !getActivePlaybackFlow()) return null;
+        const sampleSeconds = getActiveWaveform().sampleSeconds ?? 1;
+        const index = Math.floor(getCurrentTime() / sampleSeconds);
         const sample = values[index];
         if (!Number.isFinite(sample)) return null;
         // Ambience needs a more responsive particle level than the match mix.
@@ -382,11 +436,14 @@ function createLayer({
     onRemove() {
       soundFlows.forEach((flow) => flow.dispose());
       playbackFlow?.dispose();
+      ambienceFlow?.dispose();
     },
 
     playAll() {
       const request = ++playbackSequence;
-      if (!playbackFlow) {
+      const activePlaybackFlow = getActivePlaybackFlow();
+      const offset = getPlaybackOffset();
+      if (!activePlaybackFlow) {
         return Promise.resolve([
           {
             status: "rejected",
@@ -394,20 +451,25 @@ function createLayer({
           },
         ]);
       }
-      const duration = playbackFlow.getDuration();
+      const duration = activePlaybackFlow.getDuration();
+      const currentTime = timelinePosition - offset;
       const startTime =
-        duration > 0 && timelinePosition >= duration ? 0 : timelinePosition;
-      timelinePosition = startTime;
+        currentTime < 0 || (duration > 0 && currentTime >= duration)
+          ? 0
+          : currentTime;
+      timelinePosition = offset + startTime;
+      playbackFlow?.pause();
+      ambienceFlow?.pause();
       soundFlows.forEach((flow) => {
         flow.pause();
         flow.setEmissionEnabled(false);
-        flow.seek(startTime);
+        flow.seek(timelinePosition);
       });
-      playbackFlow.seek(startTime);
-      return Promise.allSettled([playbackFlow.play()]).then((results) => {
+      activePlaybackFlow.seek(startTime);
+      return Promise.allSettled([activePlaybackFlow.play()]).then((results) => {
         if (request === playbackSequence && results[0].status === "fulfilled") {
           soundFlows.forEach((flow) => {
-            flow.shareAudioAnalysis(playbackFlow);
+            flow.shareAudioAnalysis(activePlaybackFlow);
             flow.setEmissionEnabled(true);
           });
           playbackMode = "all";
@@ -451,7 +513,13 @@ function createLayer({
 
       const request = ++playbackSequence;
       const currentTime = getCurrentTime();
+      const standTime =
+        currentTime +
+        (listeningMode === "ambience" && ambienceFlow
+          ? ambienceStandStart
+          : 0);
       playbackFlow?.pause();
+      ambienceFlow?.pause();
       soundFlows.forEach((flow) => {
         flow.pause();
         flow.setEmissionEnabled(false);
@@ -459,7 +527,7 @@ function createLayer({
       members.forEach((flow) => {
         flow.setVolume(0.35 / members.length);
         flow.setEmissionEnabled(true);
-        flow.seek(currentTime);
+        flow.seek(standTime);
       });
       playbackMode = "solo";
       activeFlow = selectedFlow;
@@ -486,6 +554,7 @@ function createLayer({
       playbackSequence++;
       timelinePosition = getCurrentTime();
       playbackFlow?.pause();
+      ambienceFlow?.pause();
       soundFlows.forEach((flow) => {
         flow.pause();
         flow.setEmissionEnabled(false);
@@ -497,7 +566,9 @@ function createLayer({
     seekAll(timeSeconds) {
       timelinePosition = timeSeconds;
       soundFlows.forEach((flow) => flow.seek(timeSeconds));
-      playbackFlow?.seek(timeSeconds);
+      getActivePlaybackFlow()?.seek(
+        Math.max(0, timeSeconds - getPlaybackOffset()),
+      );
     },
 
     getCurrentTime,
@@ -557,7 +628,11 @@ function createLayer({
 export default function RenderObject({
   stands,
   playbackAudioUrl,
+  ambienceAudioUrl,
+  ambienceStart,
+  ambienceStandStart,
   waveform,
+  ambienceWaveform,
   listeningMode,
   color = "#38bdf8",
   altitude = 5,
@@ -590,7 +665,11 @@ export default function RenderObject({
         id: layerId,
         stands,
         playbackAudioUrl,
+        ambienceAudioUrl,
+        ambienceStart,
+        ambienceStandStart,
         waveform,
+        ambienceWaveform,
         initialListeningMode: listeningMode,
         color,
         altitude,
@@ -661,7 +740,11 @@ export default function RenderObject({
     layerId,
     stands,
     playbackAudioUrl,
+    ambienceAudioUrl,
+    ambienceStart,
+    ambienceStandStart,
     waveform,
+    ambienceWaveform,
     color,
     altitude,
     onAudioStateChange,

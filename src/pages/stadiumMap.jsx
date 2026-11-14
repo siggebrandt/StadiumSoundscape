@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import ullevi from "../assets/json/ullevi.json";
 import eleda from "../assets/json/eleda.json";
 import ulleviWaveform from "../assets/json/ullevi-waveform.json";
+import eledaWaveform from "../assets/json/eleda-waveform.json";
+import eledaAmbienceWaveform from "../assets/json/eleda-ambience-waveform.json";
 
 import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
@@ -42,6 +44,29 @@ export default function StadiumMap() {
   const playbackActionRef = useRef(0);
   const activeArena = ARENAS[activeArenaKey];
   const playbackAudioUrl = activeArena.playbackAudioUrl;
+  const arenaWaveform =
+    activeArenaKey === "ullevi" ? ulleviWaveform : eledaWaveform;
+  const activeWaveform = arenaWaveform;
+  const activeAmbienceWaveform =
+    activeArenaKey === "eleda" ? eledaAmbienceWaveform : null;
+  const ambienceStandStart = parsePlaybackTime(
+    activeArena.ambience?.standStartTime ?? activeArena.ambience?.startTime,
+  );
+  const timelineWaveform = useMemo(() => {
+    if (
+      listeningMode === "ambience" &&
+      activeArenaKey === "eleda" &&
+      activeArena.ambience?.audioUrl
+    ) {
+      return eledaAmbienceWaveform;
+    }
+    return arenaWaveform;
+  }, [
+    activeArenaKey,
+    activeArena.ambience?.audioUrl,
+    arenaWaveform,
+    listeningMode,
+  ]);
   const mapPanning = mapBoxControls(mapRef);
 
   const handleAudioStateChange = useCallback(
@@ -138,12 +163,13 @@ export default function StadiumMap() {
       listeningMode === "match" ? getMatchEnd(activeArena.match) : null;
     const maxTime = matchEnd !== null ? matchEnd : playback.duration;
     if (start === null || (maxTime > 0 && start >= maxTime)) return;
-    if (
-      controls.getCurrentTime() < start ||
-      (maxTime > 0 && controls.getCurrentTime() >= maxTime)
-    ) {
-      controls.seekAll(start);
-    }
+    const currentTime = playback.currentTime;
+    const targetTime =
+      currentTime < start || (maxTime > 0 && currentTime >= maxTime)
+        ? start
+        : currentTime;
+    controls.seekAll(targetTime);
+    setPlayback((previous) => ({ ...previous, currentTime: targetTime }));
 
     const requestId = ++playbackActionRef.current;
     playbackModeRef.current = "all";
@@ -174,6 +200,7 @@ export default function StadiumMap() {
       mode === "ambience"
         ? parsePlaybackTime(activeArena.ambience?.startTime)
         : getMatchStart(activeArena.match);
+    audioControlsRef.current?.setListeningMode(mode);
     if (start !== null) audioControlsRef.current?.seekAll(start);
     setPlayback((previous) => ({
       ...previous,
@@ -270,7 +297,7 @@ export default function StadiumMap() {
         playbackMode={playback.mode}
         match={activeArena.match}
         listeningMode={listeningMode}
-        waveform={activeArenaKey === "ullevi" ? ulleviWaveform : null}
+        waveform={timelineWaveform}
         ambienceStart={ambienceStart}
         matchStart={matchStart}
         hasPlaybackAudio={Boolean(playbackAudioUrl)}
@@ -419,7 +446,11 @@ export default function StadiumMap() {
           <RenderObject
             stands={activeArena.stands}
             playbackAudioUrl={playbackAudioUrl}
-            waveform={ulleviWaveform}
+            ambienceAudioUrl={activeArena.ambience?.audioUrl}
+            ambienceStart={ambienceStart}
+            ambienceStandStart={ambienceStandStart}
+            waveform={activeWaveform}
+            ambienceWaveform={activeAmbienceWaveform}
             listeningMode={listeningMode}
             onAudioStateChange={handleAudioStateChange}
             onPlaybackModeChange={handlePlaybackModeChange}
