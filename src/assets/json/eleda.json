@@ -70,7 +70,7 @@
         "name": "Malmö FF",
         "shortName": "MFF",
         "abbreviation": "MFF",
-        "logo": "/vector/mff.svg",
+        "logo": "/vector/teams/mff.svg",
         "color": "#5699eb"
       },
       {
@@ -78,7 +78,7 @@
         "name": "Hammarby IF",
         "shortName": "HIF",
         "abbreviation": "HIF",
-        "logo": "/vector/hammarby.svg",
+        "logo": "/vector/teams/hammarby.svg",
         "color": "#ffcc00"
       }
     ],
