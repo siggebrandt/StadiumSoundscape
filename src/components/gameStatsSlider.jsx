@@ -11,12 +11,11 @@ import {
   getTimelineTicks,
   parsePlaybackTime,
 } from "./matchTimeline";
-import goalIcon from "../assets/icons/events/goal.png";
-import substitutionIcon from "../assets/icons/events/substitution.png";
-import penaltyIcon from "../assets/icons/events/penalty.png";
-import yellowCardIcon from "../assets/icons/events/yellow-card.svg";
-import redCardIcon from "../assets/icons/events/red-card.svg";
 import "./gameStatsSlider.css";
+
+const goalIcon = "/vector/icons/goal.svg";
+const yellowCardIcon = "/vector/icons/yellowCard.svg";
+const redCardIcon = "/vector/icons/redCard.svg";
 
 function getTimePosition(time, duration, start = 0) {
   if (duration <= start) return 0;
@@ -36,8 +35,6 @@ const INCIDENT_ICONS = {
   goal: goalIcon,
   "yellow-card": yellowCardIcon,
   "red-card": redCardIcon,
-  substitution: substitutionIcon,
-  penalty: penaltyIcon,
 };
 
 let eventLabelContext;
@@ -54,12 +51,17 @@ function IncidentIcon({ type }) {
   if (type === "medical") {
     return (
       <svg viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M8.3 4.5h3.4v3.8h3.8v3.4h-3.8v3.8H8.3v-3.8H4.5V8.3h3.8z" fill="var(--red)" />
+        <path
+          d="M8.3 4.5h3.4v3.8h3.8v3.4h-3.8v3.8H8.3v-3.8H4.5V8.3h3.8z"
+          fill="var(--red)"
+        />
       </svg>
     );
   }
   const src = INCIDENT_ICONS[type];
-  return src ? <img src={src} alt="" data-type={type} draggable="false" /> : null;
+  return src ? (
+    <img src={src} alt="" data-type={type} draggable="false" />
+  ) : null;
 }
 
 function MatchClock({ time, segments }) {
@@ -212,9 +214,44 @@ export default function GameStatsSlider({
 
   const canTogglePlayback =
     playbackMode !== "paused" || (hasPlaybackAudio && duration > 0);
+  const ambienceAvailable = ambienceStart !== null && duration > ambienceStart;
+  const canUsePlaybackShortcut =
+    canTogglePlayback && (listeningMode !== "ambience" || ambienceAvailable);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (
+        (event.code !== "Space" && event.key !== " ") ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        !canUsePlaybackShortcut
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(
+          "button, a, input, textarea, select, [contenteditable='true'], [role='button'], [role='slider']",
+        )
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      onTogglePlayback();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canUsePlaybackShortcut, onTogglePlayback]);
 
   if (listeningMode === "ambience") {
-    const available = ambienceStart !== null && duration > ambienceStart;
+    const available = ambienceAvailable;
     const ambienceDuration = available ? duration - ambienceStart : 0;
     const ambienceTime = available
       ? Math.min(Math.max(displayTime - ambienceStart, 0), ambienceDuration)
@@ -227,6 +264,7 @@ export default function GameStatsSlider({
             type="button"
             onClick={onTogglePlayback}
             disabled={!canTogglePlayback || !available}
+            aria-keyshortcuts="Space"
             title={
               !hasPlaybackAudio && playbackMode === "paused"
                 ? "Add an audio file for the play button"
@@ -313,7 +351,11 @@ export default function GameStatsSlider({
         </div>
         <div className="match-scoreboard__teams">
           <div className="match-team match-team--home" key={match.teams[0].id}>
-            <img src={match.teams[0].logo} alt="" className="match-team__logo" />
+            <img
+              src={match.teams[0].logo}
+              alt=""
+              className="match-team__logo"
+            />
             <span className="match-team__name">{match.teams[0].name}</span>
           </div>
           <div className="match-scoreboard__score">
@@ -322,7 +364,11 @@ export default function GameStatsSlider({
             <strong>{scores[match.teams[1].id]}</strong>
           </div>
           <div className="match-team match-team--away" key={match.teams[1].id}>
-            <img src={match.teams[1].logo} alt="" className="match-team__logo" />
+            <img
+              src={match.teams[1].logo}
+              alt=""
+              className="match-team__logo"
+            />
             <span className="match-team__name">{match.teams[1].name}</span>
           </div>
         </div>
@@ -344,6 +390,7 @@ export default function GameStatsSlider({
           type="button"
           onClick={onTogglePlayback}
           disabled={!canTogglePlayback}
+          aria-keyshortcuts="Space"
           title={
             !hasPlaybackAudio && playbackMode === "paused"
               ? "Add an audio file for the play button"
