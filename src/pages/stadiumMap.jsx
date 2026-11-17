@@ -4,15 +4,19 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import ullevi from "../assets/json/ullevi.json";
 import eleda from "../assets/json/eleda.json";
-import ulleviWaveform from "../assets/json/ullevi-waveform.json";
-import eledaWaveform from "../assets/json/eleda-waveform.json";
-import eledaAmbienceWaveform from "../assets/json/eleda-ambience-waveform.json";
+import ulleviWaveform from "../assets/waveform/ullevi-waveform.json";
+import eledaWaveform from "../assets/waveform/eleda-waveform.json";
+import eledaAmbienceWaveform from "../assets/waveform/eleda-ambience-waveform.json";
 
 import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
 import Navigation from "../components/navigation";
 import GameStatsSlider from "../components/gameStatsSlider";
-import { getMatchStart, getMatchEnd, parsePlaybackTime } from "../components/matchTimeline";
+import {
+  getMatchStart,
+  getMatchEnd,
+  parsePlaybackTime,
+} from "../components/matchTimeline";
 
 const ARENAS = {
   ullevi,
