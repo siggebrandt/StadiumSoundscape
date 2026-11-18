@@ -7,6 +7,7 @@ import eleda from "../assets/json/eleda.json";
 import ulleviWaveform from "../assets/waveform/ullevi-waveform.json";
 import eledaWaveform from "../assets/waveform/eleda-waveform.json";
 import eledaAmbienceWaveform from "../assets/waveform/eleda-ambience-waveform.json";
+import ulleviAmbienceWaveform from "../assets/waveform/ullevi-ambience-waveform.json";
 
 import mapBoxControls from "../components/mapBoxControls";
 import RenderObject from "../components/renderObject";
@@ -52,22 +53,25 @@ export default function StadiumMap() {
     activeArenaKey === "ullevi" ? ulleviWaveform : eledaWaveform;
   const activeWaveform = arenaWaveform;
   const activeAmbienceWaveform =
-    activeArenaKey === "eleda" ? eledaAmbienceWaveform : null;
+    activeArenaKey === "ullevi"
+      ? ulleviAmbienceWaveform
+      : eledaAmbienceWaveform;
   const ambienceStandStart = parsePlaybackTime(
     activeArena.ambience?.standStartTime ?? activeArena.ambience?.startTime,
   );
   const timelineWaveform = useMemo(() => {
     if (
       listeningMode === "ambience" &&
-      activeArenaKey === "eleda" &&
+      activeAmbienceWaveform &&
       activeArena.ambience?.audioUrl
     ) {
-      return eledaAmbienceWaveform;
+      return activeAmbienceWaveform;
     }
     return arenaWaveform;
   }, [
     activeArenaKey,
     activeArena.ambience?.audioUrl,
+    activeAmbienceWaveform,
     arenaWaveform,
     listeningMode,
   ]);

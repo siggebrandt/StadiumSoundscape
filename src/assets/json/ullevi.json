@@ -161,7 +161,8 @@
   },
   "playbackAudioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/everything.ogg",
   "ambience": {
-    "startTime": "02:33:38"
+    "startTime": "00:00:00",
+    "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/ullevi%20ambience.ogg"
   },
   "stands": {
     "west": {
