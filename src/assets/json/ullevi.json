@@ -170,7 +170,7 @@
       "depthMeters": 24,
       "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
-      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/7.ogg",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/eleda/Mic%207%20West%20long%20side.ogg",
       "color": "#a89a8f",
       "footprint": [
         [11.97908094, 57.706735846],
@@ -195,7 +195,7 @@
       "markerInsetMeters": 5,
       "markerWidthMeters": 8.5,
       "markerHeightRangeMeters": [1, 15.5],
-      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/18.ogg",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/eleda/Mic%2018%20Gais%20North.ogg",
       "color": "#0057b8",
       "colors": ["#0057b8", "#ffffff"],
       "footprint": [
@@ -210,7 +210,7 @@
       "depthMeters": 24,
       "heightRangeMeters": [24, 34],
       "emitterSpacingMeters": 4,
-      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/14.ogg",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/eleda/Mic%2014%20East%20long%20side.ogg",
       "color": "#a89a8f",
       "footprint": [
         [11.980661473, 57.706735846],
@@ -235,7 +235,7 @@
       "markerInsetMeters": 0.5,
       "markerWidthMeters": 8.5,
       "markerHeightRangeMeters": [4, 18.5],
-      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/ullevi/10.ogg",
+      "audioUrl": "https://pub-1d96cb4be0404635bd64f97cb3396c02.r2.dev/eleda/Mic%2010%20IFK%20South%20long%20side.ogg",
       "color": "#00923f",
       "colors": ["#00923f", "#111111"],
       "footprint": [
