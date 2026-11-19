@@ -374,6 +374,9 @@ export default function StadiumMap() {
         listeningMode={listeningMode}
         onSelectMode={handleSelectMode}
       />
+      <div className="project-credit">
+        Project by Sigge Brandt · William Parker · Joel Sant · Mcondisi Dlamini
+      </div>
       <div
         style={{ width: "100%", height: "100vh", touchAction: "none" }}
         {...mapPanning}

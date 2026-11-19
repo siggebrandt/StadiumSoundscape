@@ -1,0 +1,29 @@
+.project-credit {
+  position: fixed;
+  z-index: 19;
+  right: 280px;
+  bottom: 0;
+  max-width: calc(100vw - 12px);
+  overflow: hidden;
+  padding: 0 5px;
+  background: #ffffff80;
+  color: rgb(34 38 41 / 80%);
+  font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .project-credit {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 640px) {
+  .project-credit {
+    right: 42px;
+    max-width: calc(100vw - 50px);
+  }
+
+}
